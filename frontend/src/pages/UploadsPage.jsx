@@ -18,12 +18,19 @@ export default function UploadsPage() {
 
   return (
     <div>
-      <h2>Histórico de uploads</h2>
-      <label style={{ fontSize: 13, display: 'inline-flex', gap: 6, alignItems: 'center', marginBottom: 8 }}>
+      <div className="cabecalho-pagina">
+        <div>
+          <h2>Histórico de uploads</h2>
+          <div className="subtitulo">
+            Deletar um upload arquiva os boletos dele em cascata; restaurar desfaz. Reenviar o mesmo arquivo com "reprocessar" reaproveita boletos deletados com a extração nova.
+          </div>
+        </div>
+      </div>
+      <label className="check" style={{ marginBottom: 10 }}>
         <input type="checkbox" checked={incluirDeletados} onChange={(e) => setIncluirDeletados(e.target.checked)} />
         Incluir deletados
       </label>
-      <div className="painel scroll-x">
+      <div className="painel tabela-envolto">
         <table>
           <thead>
             <tr>

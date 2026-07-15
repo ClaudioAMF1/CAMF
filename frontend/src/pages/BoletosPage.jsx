@@ -9,7 +9,7 @@ import { fmtBRL, fmtData, ROTULOS_DIVERGENCIA, ROTULOS_SITUACAO } from '../forma
 
 const COLUNAS = [
   ['pagador', 'Pagador'],
-  ['id', 'Nº Doc.'],
+  ['num_documento', 'Nº Doc.'],
   ['vencimento', 'Vencimento'],
   ['valor', 'Valor'],
   ['situacao', 'Situação'],
@@ -100,18 +100,21 @@ export default function BoletosPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2>Boletos</h2>
+      <div className="cabecalho-pagina">
+        <div>
+          <h2>Boletos</h2>
+          <div className="subtitulo">Linhas amarelas precisam de revisão manual — as divergências aparecem abaixo do pagador.</div>
+        </div>
         <ExportButtons />
       </div>
       <FiltrosBar />
-      <label style={{ fontSize: 13, display: 'inline-flex', gap: 6, alignItems: 'center', marginBottom: 8 }}>
+      <label className="check" style={{ marginBottom: 10 }}>
         <input type="checkbox" checked={incluirDeletados}
           onChange={(e) => { setIncluirDeletados(e.target.checked); setPage(1) }} />
         Incluir deletados
       </label>
 
-      <div className="painel scroll-x">
+      <div className="painel tabela-envolto">
         <table>
           <thead>
             <tr>
@@ -147,7 +150,7 @@ export default function BoletosPage() {
               ) : (
                 <tr key={b.id} className={`${b.qualidade === 'revisao_manual' ? 'revisao' : ''} ${b.deletado_em ? 'deletado' : ''}`}>
                   <td>
-                    {b.pagador_nome}
+                    <span className="celula-principal">{b.pagador_nome}</span>
                     {b.qualidade === 'revisao_manual' && (
                       <div className="divergencias">
                         ⚠ {(b.divergencias || []).map((d) => ROTULOS_DIVERGENCIA[d] || d).join('; ')}
@@ -187,7 +190,7 @@ export default function BoletosPage() {
         </table>
         {data && (
           <div className="paginacao">
-            <span style={{ color: '#898781', fontSize: 12 }}>{data.total} boleto(s)</span>
+            <span className="info">{data.total} boleto(s)</span>
             <button className="mini" disabled={page <= 1} onClick={() => setPage(page - 1)}>‹ Anterior</button>
             <span>página {data.page} de {data.pages}</span>
             <button className="mini" disabled={page >= data.pages} onClick={() => setPage(page + 1)}>Próxima ›</button>

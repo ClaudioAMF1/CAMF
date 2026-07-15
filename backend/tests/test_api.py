@@ -120,6 +120,61 @@ def test_reprocessamento_com_forcar(client):
     assert client.get("/api/boletos").json()["total"] == 1
 
 
+def test_reparo_deleta_upload_e_reenvia_com_forcar(client):
+    """Fluxo de reparo: parser corrigido -> deletar upload, reenviar com forcar.
+
+    O boleto soft-deletado é reaproveitado (linha digitável UNIQUE) e
+    atualizado com a nova extração, em vez de ficar deduplicado com dados errados.
+    """
+    # extração ruim: sem CPF, nome capturado errado -> pagador provisório
+    resp = enviar(client, {"a.pdf": [_pagina(1, nome="Nome do pagador Numero", cpf=None)]})
+    upload_id = resp.json()["arquivos"][0]["upload_id"]
+    boleto_id = client.get("/api/boletos").json()["items"][0]["id"]
+
+    client.delete(f"/api/uploads/{upload_id}")
+
+    # parser corrigido: nome e CPF certos
+    resp2 = enviar(client, {"a2.pdf": [_pagina(1, nome="JOAO DA SILVA", cpf=CPF_A)]}, forcar=True)
+    arquivo = resp2.json()["arquivos"][0]
+    assert arquivo["novos"] == 1
+    assert arquivo["duplicados"] == 0
+
+    boletos = client.get("/api/boletos").json()
+    assert boletos["total"] == 1
+    boleto = boletos["items"][0]
+    assert boleto["id"] == boleto_id  # mesmo registro, restaurado e reextraído
+    assert boleto["pagador_nome"] == "JOAO DA SILVA"
+    assert boleto["qualidade"] == "ok"
+    assert boleto["upload_id"] == arquivo["upload_id"]
+
+    # o pagador provisório fica órfão e pode ser removido
+    orfao = next(p for p in client.get("/api/pagadores").json() if p["provisorio"])
+    assert orfao["qtd_boletos"] == 0
+    assert client.delete(f"/api/pagadores/{orfao['id']}").status_code == 200
+    assert all(p["provisorio"] is False for p in client.get("/api/pagadores").json())
+
+
+def test_delete_pagador_com_boletos_ativos_recusado(client):
+    enviar(client, {"a.pdf": [_pagina(1)]})
+    pagador_id = client.get("/api/pagadores").json()[0]["id"]
+    assert client.delete(f"/api/pagadores/{pagador_id}").status_code == 400
+
+
+def test_diagnostico_nao_grava(client):
+    from .conftest import fake_pdf
+
+    files = [("arquivos", ("a.pdf", fake_pdf([_pagina(1)]), "application/pdf"))]
+    resp = client.post("/api/uploads/analisar", files=files)
+    assert resp.status_code == 200
+    pagina = resp.json()["arquivos"][0]["paginas"][0]
+    assert pagina["tem_linha_digitavel"] is True
+    assert pagina["campos"]["pagador_nome"] == "JOAO DA SILVA"
+    assert pagina["divergencias"] == []
+    # nada foi gravado
+    assert client.get("/api/boletos").json()["total"] == 0
+    assert client.get("/api/uploads").json() == []
+
+
 # ---------- Soft delete ----------
 
 def test_soft_delete_boleto_some_das_queries(client):

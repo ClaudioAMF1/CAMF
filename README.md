@@ -83,6 +83,36 @@ Qualquer divergência entra no array `divergencias` do boleto e marca
 valores da linha digitável como autoritativos e os valores do texto anotados na
 observação.
 
+### Layouts de página suportados
+
+O texto que o pdfplumber extrai dos boletos Sicoob vem em dois formatos, e o
+parser cobre os dois:
+
+- **Inline**: `Vencimento 10/08/2026` (rótulo e valor na mesma linha);
+- **Tabular**: uma linha só de rótulos (`Nome do pagador Número do Documento
+  ... Vencimento`) seguida de uma linha com os valores. Linhas compostas
+  apenas por rótulos conhecidos são reconhecidas e ignoradas; o nome do
+  pagador é cortado no primeiro token de dado (data, valor, CPF/CNPJ, número
+  composto); para datas, a posição do rótulo na linha de cabeçalho determina
+  qual data da linha de valores é usada.
+
+### Modo diagnóstico
+
+`POST /api/uploads/analisar` (multipart) extrai e valida **sem gravar nada**,
+retornando por página o texto bruto e os campos reconhecidos. Na tela "Enviar
+PDFs", a opção **"Modo diagnóstico (não grava)"** usa esse endpoint — ideal
+para conferir o parser com um PDF novo antes de importar.
+
+### Reparo de importações ruins
+
+Se um lote foi importado com extração errada (ex.: parser antigo), o caminho de
+reparo é: **deletar o upload** (arquiva os boletos em cascata) e **reenviar o
+arquivo com `?forcar=true`**. Boletos soft-deletados que reaparecem no PDF são
+reaproveitados (a linha digitável é UNIQUE) e atualizados com a extração nova —
+mesmo `id`, histórico de auditoria preservado. Pagadores provisórios que
+ficarem órfãos podem ser removidos em Pagadores → "Remover" (o `DELETE` só é
+aceito para pagador sem boletos ativos).
+
 ### Página que não é boleto
 
 Página sem linha digitável reconhecível **não vira registro** (sem linha não há

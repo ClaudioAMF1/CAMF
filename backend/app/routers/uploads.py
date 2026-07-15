@@ -1,6 +1,8 @@
+from dataclasses import asdict
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -8,7 +10,13 @@ from .. import audit, schemas
 from ..database import get_db
 from ..deps import get_autor
 from ..models import Boleto, Upload
-from ..services.processamento import ArquivoJaProcessado, ResultadoArquivo, processar_arquivo
+from ..services import extracao, linha_digitavel
+from ..services.processamento import (
+    ArquivoJaProcessado,
+    ResultadoArquivo,
+    processar_arquivo,
+    validar_cruzado,
+)
 
 router = APIRouter(prefix="/api/uploads", tags=["uploads"])
 
@@ -64,6 +72,46 @@ async def enviar_pdfs(
     return schemas.RespostaUpload(
         arquivos=[schemas.ResultadoArquivoOut(**vars(r)) for r in resultados]
     )
+
+
+@router.post("/analisar")
+async def analisar_sem_gravar(arquivos: list[UploadFile] = File(...)):
+    """Modo diagnóstico: extrai e valida sem gravar nada no banco.
+
+    Retorna, por página, o texto bruto extraído e os campos reconhecidos —
+    útil para calibrar o parser com PDFs reais.
+    """
+    saida = []
+    for arquivo in arquivos:
+        nome = arquivo.filename or "sem_nome.pdf"
+        conteudo = await arquivo.read()
+        try:
+            if not conteudo.startswith(b"%PDF"):
+                raise ValueError("arquivo não é um PDF válido")
+            paginas = []
+            for num, texto in enumerate(extracao.extrair_textos_paginas(conteudo), start=1):
+                dados = extracao.extrair_dados_pagina(texto)
+                item = {
+                    "pagina": num,
+                    "tem_linha_digitavel": dados is not None,
+                    "parece_boleto": extracao.parece_boleto(texto),
+                    "texto": texto[:4000],
+                    "campos": None,
+                    "divergencias": None,
+                }
+                if dados is not None:
+                    analise = linha_digitavel.analisar(dados.linha_digitavel_bruta)
+                    item["campos"] = asdict(dados)
+                    if analise is not None:
+                        divergencias, _ = validar_cruzado(analise, dados)
+                        item["campos"]["valor_linha"] = analise.valor
+                        item["campos"]["vencimento_linha"] = analise.vencimento
+                        item["divergencias"] = divergencias
+                paginas.append(item)
+            saida.append({"nome": nome, "paginas": paginas, "erro": None})
+        except Exception as exc:
+            saida.append({"nome": nome, "paginas": [], "erro": str(exc)})
+    return jsonable_encoder({"arquivos": saida})
 
 
 @router.get("", response_model=list[schemas.UploadOut])

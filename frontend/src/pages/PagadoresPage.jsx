@@ -62,9 +62,22 @@ export default function PagadoresPage() {
     }
   }
 
+  const deletar = (p) => {
+    if (confirm(`Remover o pagador "${p.nome}"? (só é possível sem boletos ativos)`)) {
+      mut.mutate({ metodo: 'DELETE', path: `/pagadores/${p.id}` })
+    }
+  }
+
   return (
     <div>
-      <h2>Pagadores</h2>
+      <div className="cabecalho-pagina">
+        <div>
+          <h2>Pagadores</h2>
+          <div className="subtitulo">
+            Identidade pela chave CPF/CNPJ. Pagadores provisórios (sem documento) são regularizados informando o CPF/CNPJ em "Editar".
+          </div>
+        </div>
+      </div>
 
       {!!sugestoes?.length && (
         <div className="painel" style={{ borderLeft: '4px solid #eda100' }}>
@@ -96,7 +109,7 @@ export default function PagadoresPage() {
         </div>
       )}
 
-      <div className="painel scroll-x">
+      <div className="painel tabela-envolto">
         <table>
           <thead>
             <tr>
@@ -112,10 +125,10 @@ export default function PagadoresPage() {
               ) : (
                 <tr key={p.id}>
                   <td>
-                    {p.nome}
+                    <span className="celula-principal">{p.nome}</span>
                     {p.provisorio && <span className="tag provisorio" style={{ marginLeft: 6 }}>Provisório</span>}
                     {p.nomes_alternativos.length > 0 && (
-                      <div style={{ fontSize: 11, color: '#898781', marginTop: 2 }}>
+                      <div className="celula-apoio">
                         Também aparece como: {p.nomes_alternativos.join(' · ')}
                       </div>
                     )}
@@ -124,7 +137,14 @@ export default function PagadoresPage() {
                   <td>{[p.municipio, p.uf].filter(Boolean).join(' - ') || '—'}</td>
                   <td className="num">{p.qtd_boletos}</td>
                   <td className="num">{fmtBRL(p.total)}</td>
-                  <td><button className="mini" onClick={() => setEditando(p.id)}>Editar</button></td>
+                  <td>
+                    <div className="acoes">
+                      <button className="mini" onClick={() => setEditando(p.id)}>Editar</button>
+                      {p.qtd_boletos === 0 && (
+                        <button className="mini perigo" onClick={() => deletar(p)}>Remover</button>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               )
             )}

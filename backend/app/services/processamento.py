@@ -159,6 +159,37 @@ def validar_cruzado(
     return divergencias, observacoes
 
 
+def _preencher_extracao(
+    boleto: Boleto,
+    upload_id: int,
+    pagador_id: int,
+    analise: linha_digitavel.ResultadoLinha,
+    dados: extracao.DadosPagina,
+    divergencias: list[str],
+    observacoes: list[str],
+) -> None:
+    """Aplica ao boleto os campos vindos da extração (linha digitável autoritativa)."""
+    boleto.upload_id = upload_id
+    boleto.pagador_id = pagador_id
+    boleto.codigo_barras = analise.codigo_barras
+    boleto.nosso_numero = dados.nosso_numero
+    boleto.num_documento = dados.num_documento
+    boleto.especie = dados.especie
+    boleto.carteira = dados.carteira
+    boleto.data_emissao = dados.data_emissao
+    boleto.vencimento = analise.vencimento or dados.vencimento
+    boleto.valor = analise.valor if analise.valor is not None else (dados.valor or 0)
+    boleto.beneficiario_nome = dados.beneficiario_nome
+    boleto.beneficiario_cnpj = (
+        documentos.normalizar_cpf_cnpj(dados.beneficiario_cnpj)
+        or documentos.somente_digitos(dados.beneficiario_cnpj)
+        or None
+    )
+    boleto.qualidade = Qualidade.revisao_manual if divergencias else Qualidade.ok
+    boleto.divergencias = divergencias
+    boleto.observacao = "\n".join(observacoes) or None
+
+
 def processar_arquivo(
     db: Session,
     nome_arquivo: str,
@@ -208,7 +239,7 @@ def processar_arquivo(
             continue
 
         existente = _buscar_boleto_por_linha(db, analise.linha_digitavel)
-        if existente is not None:
+        if existente is not None and existente.deletado_em is None:
             resultado.duplicados += 1
             upload.qtd_duplicados += 1
             continue
@@ -217,31 +248,26 @@ def processar_arquivo(
         divergencias, observacoes = validar_cruzado(analise, dados)
         divergencias = divergencias_pagador + divergencias
 
-        boleto = Boleto(
-            upload_id=upload.id,
-            pagador_id=pagador.id,
-            linha_digitavel=analise.linha_digitavel,
-            codigo_barras=analise.codigo_barras,
-            nosso_numero=dados.nosso_numero,
-            num_documento=dados.num_documento,
-            especie=dados.especie,
-            carteira=dados.carteira,
-            data_emissao=dados.data_emissao,
-            # Linha digitável é autoritativa; texto entra só como fallback
-            vencimento=analise.vencimento or dados.vencimento,
-            valor=analise.valor if analise.valor is not None else (dados.valor or 0),
-            beneficiario_nome=dados.beneficiario_nome,
-            beneficiario_cnpj=documentos.normalizar_cpf_cnpj(dados.beneficiario_cnpj)
-            or documentos.somente_digitos(dados.beneficiario_cnpj)
-            or None,
-            situacao=Situacao.aberto,
-            qualidade=Qualidade.revisao_manual if divergencias else Qualidade.ok,
-            divergencias=divergencias,
-            observacao="\n".join(observacoes) or None,
-        )
-        db.add(boleto)
-        db.flush()
-        audit.registrar(db, "boleto", boleto.id, "criar", origem="extracao", autor=autor)
+        if existente is not None:
+            # Boleto soft-deletado reaparecendo no PDF: reaproveita o registro
+            # (a linha digitável é UNIQUE), atualizando com a extração nova.
+            # É o caminho de reparo: deletar o upload e reenviar com forcar=true
+            # depois de uma correção do parser.
+            boleto = existente
+            _preencher_extracao(boleto, upload.id, pagador.id, analise, dados,
+                                divergencias, observacoes)
+            boleto.restaurar()
+            audit.registrar(
+                db, "boleto", boleto.id, "restaurar",
+                campo="reextracao", origem="extracao", autor=autor,
+            )
+        else:
+            boleto = Boleto(linha_digitavel=analise.linha_digitavel, situacao=Situacao.aberto)
+            _preencher_extracao(boleto, upload.id, pagador.id, analise, dados,
+                                divergencias, observacoes)
+            db.add(boleto)
+            db.flush()
+            audit.registrar(db, "boleto", boleto.id, "criar", origem="extracao", autor=autor)
 
         resultado.novos += 1
         upload.qtd_boletos_novos += 1

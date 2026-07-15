@@ -14,6 +14,7 @@ router = APIRouter(prefix="/api/boletos", tags=["boletos"])
 
 COLUNAS_ORDENACAO = {
     "id": Boleto.id,
+    "num_documento": Boleto.num_documento,
     "vencimento": Boleto.vencimento,
     "valor": Boleto.valor,
     "situacao": Boleto.situacao,

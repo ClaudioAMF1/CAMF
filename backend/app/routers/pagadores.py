@@ -176,6 +176,35 @@ def editar(
     return _montar_out(db, [pagador])[0]
 
 
+@router.delete("/{pagador_id}", response_model=schemas.PagadorOut)
+def deletar(pagador_id: int, db: Session = Depends(get_db), autor: str = Depends(get_autor)):
+    """Soft delete de pagador sem boletos ativos (limpeza de provisórios órfãos)."""
+    pagador = _obter(db, pagador_id)
+    ativos = db.execute(
+        select(func.count(Boleto.id)).where(Boleto.pagador_id == pagador.id)
+    ).scalar_one()
+    if ativos > 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Pagador tem boletos ativos; faça merge ou delete os boletos antes",
+        )
+    pagador.soft_delete()
+    audit.registrar(db, "pagador", pagador.id, "deletar", origem="manual", autor=autor)
+    db.commit()
+    return _montar_out(db, [pagador])[0]
+
+
+@router.post("/{pagador_id}/restaurar", response_model=schemas.PagadorOut)
+def restaurar(pagador_id: int, db: Session = Depends(get_db), autor: str = Depends(get_autor)):
+    pagador = _obter(db, pagador_id, incluir_deletados=True)
+    if pagador.deletado_em is None:
+        raise HTTPException(status_code=400, detail="Pagador não está deletado")
+    pagador.restaurar()
+    audit.registrar(db, "pagador", pagador.id, "restaurar", origem="manual", autor=autor)
+    db.commit()
+    return _montar_out(db, [pagador])[0]
+
+
 @router.post("/{pagador_id}/merge", response_model=schemas.PagadorOut)
 def merge(
     pagador_id: int,
