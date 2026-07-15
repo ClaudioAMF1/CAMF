@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+test_camf.db
+.venv/
+
+# Node
+node_modules/
+dist/
+
+# Ambiente
+.env

@@ -1,0 +1,136 @@
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #898781;
+  --grid: #e1e0d9;
+  --baseline: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.1);
+  --azul: #2a78d6;
+  --azul-escuro: #1c5cab;
+  --verde: #008300;
+  --amarelo-bg: #fff6d6;
+  --amarelo-borda: #eda100;
+  --vermelho: #d03b3b;
+  --good: #0ca30c;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  background: var(--page);
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.layout { display: flex; min-height: 100vh; }
+.sidebar {
+  width: 210px; flex-shrink: 0; background: #1f2933; color: #e5e7eb;
+  padding: 20px 0; display: flex; flex-direction: column; gap: 2px;
+}
+.sidebar h1 { font-size: 16px; padding: 0 20px 14px; margin: 0; color: #fff; }
+.sidebar h1 small { display: block; font-weight: 400; font-size: 11px; color: #9aa5b1; margin-top: 2px; }
+.sidebar a {
+  color: #cbd2d9; text-decoration: none; padding: 9px 20px; display: block;
+  border-left: 3px solid transparent;
+}
+.sidebar a:hover { background: rgba(255, 255, 255, 0.06); }
+.sidebar a.ativo { color: #fff; border-left-color: var(--azul); background: rgba(42, 120, 214, 0.15); }
+
+.conteudo { flex: 1; padding: 22px 26px; min-width: 0; }
+h2 { margin: 0 0 16px; font-size: 19px; }
+h3 { font-size: 14px; color: var(--ink-2); margin: 22px 0 8px; }
+
+.painel {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 16px; margin-bottom: 16px;
+}
+
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+.card .rotulo { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.card .valor { font-size: 20px; font-weight: 700; margin-top: 4px; }
+.card.alerta .valor { color: var(--vermelho); }
+.card.ok .valor { color: var(--good); }
+
+.grade-graficos { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 1100px) { .grade-graficos { grid-template-columns: 1fr; } }
+.grafico-titulo { font-size: 13px; font-weight: 600; color: var(--ink-2); margin-bottom: 8px; }
+
+table { width: 100%; border-collapse: collapse; background: var(--surface); }
+th {
+  text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em;
+  color: var(--muted); padding: 8px 10px; border-bottom: 2px solid var(--baseline);
+  white-space: nowrap;
+}
+th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
+td { padding: 7px 10px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+tr.revisao td { background: var(--amarelo-bg); }
+tr.deletado td { opacity: 0.45; text-decoration: line-through; }
+tr.total-geral td { font-weight: 700; border-top: 2px solid var(--baseline); background: #f0f4fa; }
+th.ordenavel { cursor: pointer; user-select: none; }
+th.ordenavel:hover { color: var(--ink); }
+
+.tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.tag.aberto { background: #e3edfb; color: var(--azul-escuro); }
+.tag.pago { background: #e2f2e2; color: #006300; }
+.tag.cancelado { background: #eeeeec; color: var(--ink-2); }
+.tag.vencido { background: #fbe3e3; color: var(--vermelho); }
+.tag.revisao { background: var(--amarelo-bg); color: #8a5b00; border: 1px solid var(--amarelo-borda); }
+.tag.provisorio { background: #f3e8fb; color: #6b21a8; }
+
+.divergencias { font-size: 11px; color: #8a5b00; margin-top: 3px; }
+
+button, .botao {
+  font: inherit; font-size: 13px; padding: 6px 12px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--ink);
+  cursor: pointer; text-decoration: none; display: inline-block;
+}
+button:hover, .botao:hover { background: #f1f1ee; }
+button.primario { background: var(--azul); border-color: var(--azul); color: #fff; }
+button.primario:hover { background: var(--azul-escuro); }
+button.perigo { color: var(--vermelho); }
+button.mini { font-size: 12px; padding: 3px 8px; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+input, select {
+  font: inherit; font-size: 13px; padding: 6px 8px; border: 1px solid var(--baseline);
+  border-radius: 6px; background: #fff; color: var(--ink);
+}
+label.filtro { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--muted); }
+
+.filtros { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-bottom: 16px; }
+.acoes { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+.dropzone {
+  border: 2px dashed var(--baseline); border-radius: 10px; padding: 44px;
+  text-align: center; color: var(--muted); background: var(--surface); cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.dropzone.ativo { border-color: var(--azul); background: #eef4fc; color: var(--azul-escuro); }
+
+.resultado-arquivo { border-left: 4px solid var(--verde); padding: 10px 14px; margin-top: 10px; background: var(--surface); border-radius: 0 8px 8px 0; border-top: 1px solid var(--border); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.resultado-arquivo.erro { border-left-color: var(--vermelho); }
+.resultado-arquivo.duplicado { border-left-color: var(--amarelo-borda); }
+.resultado-arquivo .nome { font-weight: 600; }
+.resultado-arquivo .detalhes { font-size: 12px; color: var(--ink-2); margin-top: 4px; }
+
+.drawer-fundo { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.35); z-index: 40; }
+.drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; width: 460px; max-width: 92vw;
+  background: var(--surface); z-index: 41; box-shadow: -6px 0 24px rgba(0, 0, 0, 0.18);
+  padding: 20px; overflow-y: auto;
+}
+.drawer h3 { margin-top: 0; }
+.trilha-item { border-left: 2px solid var(--grid); padding: 6px 0 6px 12px; margin-left: 4px; }
+.trilha-item .quando { font-size: 11px; color: var(--muted); }
+.trilha-item .oque { font-size: 13px; margin-top: 2px; }
+
+.paginacao { display: flex; gap: 8px; align-items: center; justify-content: flex-end; padding: 10px 0; }
+.vazio { color: var(--muted); padding: 24px; text-align: center; }
+.erro-msg { color: var(--vermelho); font-size: 13px; }
+.aviso-409 { background: var(--amarelo-bg); border: 1px solid var(--amarelo-borda); border-radius: 8px; padding: 12px 14px; margin-top: 10px; }
+.scroll-x { overflow-x: auto; }

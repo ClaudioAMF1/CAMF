@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<style>
+  @page {
+    size: A4;
+    margin: 2cm 1.5cm;
+    @bottom-right { content: "Página " counter(page) " de " counter(pages); font-size: 8pt; color: #666; }
+    @bottom-left { content: "{{ empresa }}"; font-size: 8pt; color: #666; }
+  }
+  body { font-family: Helvetica, Arial, sans-serif; font-size: 9pt; color: #222; }
+  header { border-bottom: 3px solid #1F4E78; padding-bottom: 8px; margin-bottom: 16px; }
+  h1 { font-size: 15pt; color: #1F4E78; margin: 0 0 2px; }
+  .meta { font-size: 8.5pt; color: #555; }
+  .cards { display: flex; gap: 8px; margin: 14px 0; }
+  .card { flex: 1; border: 1px solid #d5dde5; border-radius: 6px; padding: 8px 10px; }
+  .card .rotulo { font-size: 7.5pt; text-transform: uppercase; color: #667; letter-spacing: .04em; }
+  .card .valor { font-size: 11pt; font-weight: bold; margin-top: 2px; }
+  h2 { font-size: 11pt; color: #1F4E78; margin: 18px 0 6px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: #1F4E78; color: #fff; padding: 4px 6px; font-size: 8pt; text-align: left; }
+  td { padding: 3px 6px; border-bottom: 1px solid #e3e8ee; }
+  tr:nth-child(even) td { background: #f5f8fb; }
+  .num { text-align: right; }
+  .total-geral td { background: #1F4E78 !important; color: #fff; font-weight: bold; font-size: 10pt; }
+  .revisao td { background: #fff6d6 !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>{{ empresa }} — Contas a Receber</h1>
+  <div class="meta">
+    CNPJ {{ cnpj }} &nbsp;·&nbsp; Gerado em {{ gerado_em.strftime('%d/%m/%Y %H:%M') }}
+    &nbsp;·&nbsp; Período: {{ periodo }}
+  </div>
+</header>
+
+<div class="cards">
+  <div class="card"><div class="rotulo">Total geral</div><div class="valor">{{ resumo.total_geral | brl }}</div></div>
+  <div class="card"><div class="rotulo">Em aberto</div><div class="valor">{{ resumo.total_aberto | brl }}</div></div>
+  <div class="card"><div class="rotulo">Pago</div><div class="valor">{{ resumo.total_pago | brl }}</div></div>
+  <div class="card"><div class="rotulo">Vencido</div><div class="valor">{{ resumo.total_vencido | brl }}</div></div>
+  <div class="card"><div class="rotulo">Boletos</div><div class="valor">{{ resumo.qtd_boletos }}</div></div>
+</div>
+
+<h2>Resumo por pagador × valor unitário</h2>
+<table>
+  <thead><tr><th>Pagador</th><th class="num">Qtd</th><th class="num">Valor unitário</th><th class="num">Subtotal</th></tr></thead>
+  <tbody>
+    {% for item in resumo.por_pagador %}
+    <tr>
+      <td>{{ item.nome }}</td>
+      <td class="num">{{ item.qtd }}</td>
+      <td class="num">{{ item.valor_unitario | brl }}</td>
+      <td class="num">{{ item.subtotal | brl }}</td>
+    </tr>
+    {% endfor %}
+    <tr class="total-geral">
+      <td>TOTAL GERAL</td>
+      <td class="num">{{ resumo.qtd_boletos }}</td>
+      <td></td>
+      <td class="num">{{ resumo.total_geral | brl }}</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Detalhado</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Pagador</th><th>Nº Doc.</th><th>Emissão</th><th>Vencimento</th>
+      <th class="num">Valor</th><th>Situação</th><th>Divergências</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for b in detalhado %}
+    <tr {% if b.qualidade == 'revisao_manual' %}class="revisao"{% endif %}>
+      <td>{{ b.pagador_nome }}</td>
+      <td>{{ b.num_documento or '' }}</td>
+      <td>{{ b.data_emissao | data_br }}</td>
+      <td>{{ b.vencimento | data_br }}</td>
+      <td class="num">{{ b.valor | brl }}</td>
+      <td>{{ b.situacao }}{% if b.vencido %} (vencido){% endif %}</td>
+      <td>{{ b.divergencias }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</body>
+</html>
