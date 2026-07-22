@@ -5,6 +5,7 @@ from app.services.extracao import (
     eh_linha_rotulo,
     extrair_dados_pagina,
     _nome_na_linha,
+    _nome_valido,
 )
 from app.services.linha_digitavel import montar_linha
 
@@ -23,6 +24,40 @@ def test_nome_corta_no_primeiro_token_de_dado():
     assert _nome_na_linha("MARIA OLIVEIRA 7-02 529.982.247-25 10/08/2026") == "MARIA OLIVEIRA"
     assert _nome_na_linha("JOAO DA SILVA CPF/CNPJ: 529.982.247-25") == "JOAO DA SILVA"
     assert _nome_na_linha("EMPRESA XYZ LTDA 11.222.333/0001-81 1.250,00") == "EMPRESA XYZ LTDA"
+
+
+def test_nome_valido_rejeita_rotulos():
+    # o bug dos screenshots: uma sequência de rótulos nunca vira nome
+    assert _nome_valido("Nome do pagador Número do Documento") is None
+    assert _nome_valido("Nome do Pagador") is None
+    assert _nome_valido("CPF/CNPJ do Pagador") is None
+    assert _nome_valido("Endereço") is None
+    assert _nome_valido("") is None
+    assert _nome_valido(None) is None
+
+
+def test_nome_valido_aceita_e_limpa_nomes_reais():
+    assert _nome_valido("JOAO DA SILVA") == "JOAO DA SILVA"
+    assert _nome_valido("MARIA APARECIDA DE SOUZA") == "MARIA APARECIDA DE SOUZA"
+    # rótulo grudado no começo do nome (layout tabular) é removido
+    assert _nome_valido("Nome do pagador JOAO DA SILVA") == "JOAO DA SILVA"
+    assert _nome_valido("Pagador CONSTRUTORA XYZ LTDA") == "CONSTRUTORA XYZ LTDA"
+
+
+def test_pagina_com_linha_de_rotulos_nao_gera_nome_lixo():
+    """Se só há linha de rótulos como nome, o pagador fica sem nome (revisão),
+    e nunca com o texto do rótulo."""
+    linha = montar_linha(campo_livre="7" * 25, valor=Decimal("100.00"), vencimento=date(2026, 8, 10))
+    texto = f"""SICOOB
+Beneficiário CAMF CONSTRUTORA LTDA CNPJ: 42.800.118/0001-44
+Vencimento 10/08/2026
+(=) Valor do Documento 100,00
+Pagador
+Nome do pagador Número do Documento
+{formatar_linha(linha)}
+"""
+    dados = extrair_dados_pagina(texto)
+    assert dados.pagador_nome is None
 
 
 def test_layout_tabular_rotulos_e_valores_em_linhas_separadas():

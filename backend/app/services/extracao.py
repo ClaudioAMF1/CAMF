@@ -128,6 +128,26 @@ def eh_linha_rotulo(linha: str) -> bool:
     return len(re.sub(r"[^a-z]", "", txt)) <= 2
 
 
+# Palavras que compõem rótulos de campos — nunca fazem parte de um nome real.
+# Um nome candidato que sobra só com essas palavras é, na verdade, um rótulo.
+_STOPWORDS_ROTULO = {"do", "da", "de", "dos", "das", "no", "na", "e"}
+for _r in ROTULOS_CONHECIDOS:
+    _STOPWORDS_ROTULO.update(_sem_acentos_minusculo(_r).split())
+
+
+def _token_normalizado(token: str) -> str:
+    return _sem_acentos_minusculo(re.sub(r"[^A-Za-zÀ-ÿ]", "", token))
+
+
+def _limpar_nome(nome: str) -> str:
+    """Remove rótulos que grudam no começo do nome (layout tabular)."""
+    tokens = nome.split()
+    i = 0
+    while i < len(tokens) and _token_normalizado(tokens[i]) in _STOPWORDS_ROTULO:
+        i += 1
+    return " ".join(tokens[i:]).strip(" -:.,|")
+
+
 def _nome_na_linha(linha: str) -> str | None:
     """Extrai o nome do início da linha, cortando no primeiro token de dado.
 
@@ -137,6 +157,21 @@ def _nome_na_linha(linha: str) -> str | None:
     nome = linha[: m.start()] if m else linha
     nome = RE_SUFIXO_ROTULO_DOC.sub("", nome.strip())
     return nome.strip(" -:.,|") or None
+
+
+def _nome_valido(bruto: str | None) -> str | None:
+    """Valida um nome candidato: rejeita rótulos, devolve o nome limpo ou None.
+
+    Garante que texto como 'Nome do pagador Número do Documento' — que é só
+    uma sequência de rótulos — nunca seja aceito como nome de pagador.
+    """
+    if not bruto:
+        return None
+    limpo = _limpar_nome(bruto)
+    letras = re.sub(r"[^A-Za-zÀ-ÿ]", "", limpo)
+    if len(letras) < 3 or eh_linha_rotulo(limpo):
+        return None
+    return limpo
 
 
 def _parse_data(texto: str | None) -> date | None:
@@ -282,8 +317,8 @@ def _extrair_pagador(texto: str, dados: DadosPagina) -> None:
 
     idx_nome = None
     for i, linha in enumerate(conteudo):
-        nome = _nome_na_linha(linha)
-        if nome and len(re.sub(r"[^A-Za-zÀ-ÿ]", "", nome)) >= 3:
+        nome = _nome_valido(_nome_na_linha(linha))
+        if nome:
             dados.pagador_nome = nome
             idx_nome = i
             break
