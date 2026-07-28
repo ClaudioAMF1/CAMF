@@ -77,6 +77,10 @@ class Upload(Base, SoftDeleteMixin):
     hash_sha256: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     qtd_paginas: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     qtd_boletos_novos: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    # Boletos já existentes re-extraídos num reprocessamento (forcar=true)
+    qtd_atualizados: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0", nullable=False
+    )
     qtd_duplicados: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     qtd_ignoradas: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     qtd_revisao: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

@@ -129,6 +129,7 @@ class UploadOut(ORMModel):
     hash_sha256: str
     qtd_paginas: int
     qtd_boletos_novos: int
+    qtd_atualizados: int = 0
     qtd_duplicados: int
     qtd_ignoradas: int
     qtd_revisao: int
@@ -141,6 +142,7 @@ class ResultadoArquivoOut(BaseModel):
     nome: str
     upload_id: int | None = None
     novos: int = 0
+    atualizados: int = 0
     duplicados: int = 0
     ignoradas: list[int] = Field(default_factory=list)
     revisao_manual: int = 0

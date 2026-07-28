@@ -26,6 +26,7 @@ class ResultadoArquivo:
     nome: str
     upload_id: int | None = None
     novos: int = 0
+    atualizados: int = 0
     duplicados: int = 0
     ignoradas: list[int] = field(default_factory=list)
     revisao_manual: int = 0
@@ -239,7 +240,10 @@ def processar_arquivo(
             continue
 
         existente = _buscar_boleto_por_linha(db, analise.linha_digitavel)
-        if existente is not None and existente.deletado_em is None:
+        # Boleto ativo já existente só é "duplicado ignorado" no envio normal.
+        # Com forcar=true o envio é um reprocessamento explícito: o registro é
+        # re-extraído e atualizado (caminho de reparo após corrigir o parser).
+        if existente is not None and existente.deletado_em is None and not forcar:
             resultado.duplicados += 1
             upload.qtd_duplicados += 1
             continue
@@ -249,18 +253,21 @@ def processar_arquivo(
         divergencias = divergencias_pagador + divergencias
 
         if existente is not None:
-            # Boleto soft-deletado reaparecendo no PDF: reaproveita o registro
-            # (a linha digitável é UNIQUE), atualizando com a extração nova.
-            # É o caminho de reparo: deletar o upload e reenviar com forcar=true
-            # depois de uma correção do parser.
+            # Reaproveita o registro (a linha digitável é UNIQUE), preservando
+            # id, histórico de auditoria e o estado de pagamento.
             boleto = existente
+            estava_deletado = boleto.deletado_em is not None
             _preencher_extracao(boleto, upload.id, pagador.id, analise, dados,
                                 divergencias, observacoes)
-            boleto.restaurar()
+            if estava_deletado:
+                boleto.restaurar()
             audit.registrar(
-                db, "boleto", boleto.id, "restaurar",
+                db, "boleto", boleto.id,
+                "restaurar" if estava_deletado else "editar",
                 campo="reextracao", origem="extracao", autor=autor,
             )
+            resultado.atualizados += 1
+            upload.qtd_atualizados += 1
         else:
             boleto = Boleto(linha_digitavel=analise.linha_digitavel, situacao=Situacao.aberto)
             _preencher_extracao(boleto, upload.id, pagador.id, analise, dados,
@@ -268,9 +275,9 @@ def processar_arquivo(
             db.add(boleto)
             db.flush()
             audit.registrar(db, "boleto", boleto.id, "criar", origem="extracao", autor=autor)
+            resultado.novos += 1
+            upload.qtd_boletos_novos += 1
 
-        resultado.novos += 1
-        upload.qtd_boletos_novos += 1
         if divergencias:
             resultado.revisao_manual += 1
             upload.qtd_revisao += 1

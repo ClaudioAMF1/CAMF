@@ -111,41 +111,78 @@ def test_reprocessamento_com_forcar(client):
     assert resp2.status_code == 200
     arquivo = resp2.json()["arquivos"][0]
     assert arquivo["upload_id"] != original
-    assert arquivo["duplicados"] == 1
+    # reprocessar = re-extrair: o boleto existente é atualizado, não ignorado
+    assert arquivo["atualizados"] == 1
+    assert arquivo["duplicados"] == 0
     assert arquivo["novos"] == 0
 
     novo_upload = client.get(f"/api/uploads/{arquivo['upload_id']}").json()
     assert novo_upload["reprocessado_de_id"] == original
-    # boletos continuam deduplicados
+    assert novo_upload["qtd_atualizados"] == 1
+    # sem boleto duplicado: a linha digitável continua única
     assert client.get("/api/boletos").json()["total"] == 1
 
 
-def test_reparo_deleta_upload_e_reenvia_com_forcar(client):
-    """Fluxo de reparo: parser corrigido -> deletar upload, reenviar com forcar.
-
-    O boleto soft-deletado é reaproveitado (linha digitável UNIQUE) e
-    atualizado com a nova extração, em vez de ficar deduplicado com dados errados.
-    """
+def test_reparo_reenviando_com_forcar_sem_deletar_nada(client):
+    """Fluxo de reparo em um passo: corrigido o parser, basta reenviar o mesmo
+    PDF com forcar=true — os boletos existentes são re-extraídos no lugar."""
     # extração ruim: sem CPF, nome capturado errado -> pagador provisório
     resp = enviar(client, {"a.pdf": [_pagina(1, nome="Nome do pagador Numero", cpf=None)]})
-    upload_id = resp.json()["arquivos"][0]["upload_id"]
     boleto_id = client.get("/api/boletos").json()["items"][0]["id"]
+    assert resp.json()["arquivos"][0]["revisao_manual"] == 1
 
-    client.delete(f"/api/uploads/{upload_id}")
-
-    # parser corrigido: nome e CPF certos
-    resp2 = enviar(client, {"a2.pdf": [_pagina(1, nome="JOAO DA SILVA", cpf=CPF_A)]}, forcar=True)
+    # parser corrigido: mesmo arquivo reenviado, nome e CPF agora certos
+    resp2 = enviar(client, {"a.pdf": [_pagina(1, nome="JOAO DA SILVA", cpf=CPF_A)]}, forcar=True)
     arquivo = resp2.json()["arquivos"][0]
-    assert arquivo["novos"] == 1
+    assert arquivo["atualizados"] == 1
     assert arquivo["duplicados"] == 0
 
     boletos = client.get("/api/boletos").json()
     assert boletos["total"] == 1
     boleto = boletos["items"][0]
-    assert boleto["id"] == boleto_id  # mesmo registro, restaurado e reextraído
+    assert boleto["id"] == boleto_id  # mesmo registro, re-extraído
     assert boleto["pagador_nome"] == "JOAO DA SILVA"
     assert boleto["qualidade"] == "ok"
-    assert boleto["upload_id"] == arquivo["upload_id"]
+    assert boleto["divergencias"] == []
+
+    # a trilha de auditoria do registro é preservada e ganha a re-extração
+    trilha = client.get(f"/api/boletos/{boleto_id}/auditoria").json()
+    assert any(r["campo"] == "reextracao" for r in trilha)
+    assert any(r["acao"] == "criar" for r in trilha)
+
+
+def test_reprocessamento_preserva_pagamento_ja_registrado(client):
+    """Re-extrair não pode apagar o que o usuário registrou: situação e
+    pagamento sobrevivem ao reprocessamento."""
+    enviar(client, {"a.pdf": [_pagina(1)]})
+    boleto_id = client.get("/api/boletos").json()["items"][0]["id"]
+    client.post(
+        f"/api/boletos/{boleto_id}/pagar",
+        json={"data_pagamento": "2026-08-01", "valor_pago": "100.00"},
+    )
+
+    enviar(client, {"a.pdf": [_pagina(1)]}, forcar=True)
+
+    boleto = client.get(f"/api/boletos/{boleto_id}").json()
+    assert boleto["situacao"] == "pago"
+    assert boleto["data_pagamento"] == "2026-08-01"
+    assert boleto["valor_pago"] == "100.00"
+
+
+def test_reparo_apos_deletar_upload_tambem_funciona(client):
+    """O caminho antigo (deletar upload + reenviar) continua válido."""
+    resp = enviar(client, {"a.pdf": [_pagina(1, nome="Nome do pagador Numero", cpf=None)]})
+    upload_id = resp.json()["arquivos"][0]["upload_id"]
+    boleto_id = client.get("/api/boletos").json()["items"][0]["id"]
+
+    client.delete(f"/api/uploads/{upload_id}")
+    resp2 = enviar(client, {"a2.pdf": [_pagina(1, nome="JOAO DA SILVA", cpf=CPF_A)]}, forcar=True)
+
+    assert resp2.json()["arquivos"][0]["atualizados"] == 1
+    boletos = client.get("/api/boletos").json()
+    assert boletos["total"] == 1
+    assert boletos["items"][0]["id"] == boleto_id  # restaurado e re-extraído
+    assert boletos["items"][0]["pagador_nome"] == "JOAO DA SILVA"
 
     # o pagador provisório fica órfão e pode ser removido
     orfao = next(p for p in client.get("/api/pagadores").json() if p["provisorio"])

@@ -35,14 +35,14 @@ export default function UploadsPage() {
           <thead>
             <tr>
               <th>#</th><th>Arquivo</th><th>Enviado em</th><th className="num">Páginas</th>
-              <th className="num">Novos</th><th className="num">Duplicados</th>
+              <th className="num">Novos</th><th className="num">Atualizados</th><th className="num">Duplicados</th>
               <th className="num">Ignoradas</th><th className="num">Revisão</th>
               <th>Reprocessado de</th><th>Ações</th>
             </tr>
           </thead>
           <tbody>
-            {isLoading && <tr><td colSpan={10} className="vazio">Carregando…</td></tr>}
-            {data?.length === 0 && <tr><td colSpan={10} className="vazio">Nenhum upload ainda.</td></tr>}
+            {isLoading && <tr><td colSpan={11} className="vazio">Carregando…</td></tr>}
+            {data?.length === 0 && <tr><td colSpan={11} className="vazio">Nenhum upload ainda.</td></tr>}
             {(data || []).map((u) => (
               <tr key={u.id} className={u.deletado_em ? 'deletado' : ''}>
                 <td>{u.id}</td>
@@ -50,6 +50,7 @@ export default function UploadsPage() {
                 <td>{fmtDataHora(u.criado_em)}</td>
                 <td className="num">{u.qtd_paginas}</td>
                 <td className="num">{u.qtd_boletos_novos}</td>
+                <td className="num">{u.qtd_atualizados}</td>
                 <td className="num">{u.qtd_duplicados}</td>
                 <td className="num">{u.qtd_ignoradas}</td>
                 <td className="num">{u.qtd_revisao}</td>

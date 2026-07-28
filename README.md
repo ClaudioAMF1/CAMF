@@ -105,13 +105,22 @@ para conferir o parser com um PDF novo antes de importar.
 
 ### Reparo de importações ruins
 
-Se um lote foi importado com extração errada (ex.: parser antigo), o caminho de
-reparo é: **deletar o upload** (arquiva os boletos em cascata) e **reenviar o
-arquivo com `?forcar=true`**. Boletos soft-deletados que reaparecem no PDF são
-reaproveitados (a linha digitável é UNIQUE) e atualizados com a extração nova —
-mesmo `id`, histórico de auditoria preservado. Pagadores provisórios que
-ficarem órfãos podem ser removidos em Pagadores → "Remover" (o `DELETE` só é
-aceito para pagador sem boletos ativos).
+Se um lote foi importado com extração errada (ex.: parser antigo), basta
+**reenviar o mesmo PDF e confirmar "Reprocessar e atualizar os boletos"**
+(`?forcar=true`). Os boletos daquele arquivo são re-extraídos **no lugar**:
+mesmo `id`, histórico de auditoria preservado e **situação/pagamento
+mantidos** — só os campos vindos da extração (pagador, CPF/CNPJ, valores,
+datas) são atualizados. Pagadores provisórios que ficarem órfãos podem ser
+removidos em Pagadores → "Remover" (o `DELETE` só é aceito para pagador sem
+boletos ativos).
+
+> **Semântica do `forcar=true`** — a especificação original dizia que, no
+> reprocessamento, "boletos que já existem continuam sendo deduplicados".
+> Na prática isso tornava impossível corrigir registros já importados: a
+> correção do parser nunca chegava neles. Aqui, `forcar=true` significa
+> *re-extrair e atualizar* (contados em `atualizados`), enquanto o envio
+> normal (`forcar=false`) mantém a deduplicação como especificado
+> (contados em `duplicados`).
 
 ### Página que não é boleto
 
@@ -143,8 +152,9 @@ mas a linha não foi reconhecida, o caso é logado como possível falha de parsi
 - **Arquivo** (hash SHA-256 já processado):
   - `?forcar=false` (default) ⇒ `409` com o upload original e o resumo dele;
   - `?forcar=true` ⇒ novo registro de `upload` com `reprocessado_de_id`
-    apontando para o anterior; boletos existentes continuam deduplicados pela
-    linha digitável, boletos novos (ex.: parser corrigido) são inseridos.
+    apontando para o anterior; boletos existentes são **re-extraídos e
+    atualizados** no lugar (mesmo `id`, pagamento e auditoria preservados),
+    e boletos novos são inseridos. Ver "Reparo de importações ruins".
 
   > Nota de implementação: por causa do reprocessamento, `hash_sha256` tem
   > índice **não-único** — a unicidade lógica do "mesmo arquivo" é garantida na

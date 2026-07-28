@@ -13,7 +13,9 @@ function ResultadoArquivo({ r }) {
         {r.erro && r.erro !== 'arquivo_ja_processado' && <span className="erro-msg">Erro: {r.erro}</span>}
         {!r.erro && (
           <>
-            <strong>{r.novos}</strong> novo(s) · <strong>{r.duplicados}</strong> duplicado(s) ignorado(s) ·{' '}
+            <strong>{r.novos}</strong> novo(s)
+            {r.atualizados > 0 && <> · <strong>{r.atualizados}</strong> atualizado(s) pela re-extração</>}
+            {' '}· <strong>{r.duplicados}</strong> duplicado(s) ignorado(s) ·{' '}
             <strong>{r.revisao_manual}</strong> p/ revisão manual
             {r.ignoradas?.length > 0 && (
               <> · páginas ignoradas: {r.ignoradas.join(', ')}</>
@@ -177,8 +179,12 @@ export default function UploadPage() {
             ))}
           </div>
           <button className="primario" onClick={() => enviar(conflito409.files, true)}>
-            Reprocessar mesmo assim
+            Reprocessar e atualizar os boletos
           </button>
+          <div style={{ fontSize: 12, color: '#8a5b00', marginTop: 6 }}>
+            Os boletos deste arquivo são re-extraídos e atualizados (nome, CPF/CNPJ, valores).
+            Pagamentos já registrados e o histórico são preservados.
+          </div>
         </div>
       )}
 
