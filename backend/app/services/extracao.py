@@ -32,6 +32,10 @@ RE_DATA = re.compile(r"\b(\d{2}/\d{2}/\d{4})\b")
 RE_VALOR = re.compile(r"\b(\d{1,3}(?:\.\d{3})*,\d{2})\b")
 RE_CEP = re.compile(r"\b(\d{5})-?(\d{3})\b")
 RE_MUNICIPIO_UF = re.compile(r"([A-Za-zÀ-ÿ'.\s]+?)\s*[-/]\s*([A-Z]{2})\b")
+# Cidade + UF + CEP, cobrindo 'LUZIANIA GO 72813-105' e 'Cidade - UF 00000-000'
+RE_MUNI_UF_CEP = re.compile(
+    r"([A-Za-zÀ-ÿ'.\s]+?)\s*[-/]?\s*\b([A-Z]{2})\b\s+(\d{5})-?(\d{3})"
+)
 # Só hífen: com barra a regex casaria com pedaços de data ('01/06')
 RE_NUMERO_COMPOSTO = re.compile(r"\b(\d+-\d+)\b")
 # Primeiro token que claramente é dado (e não parte de um nome)
@@ -51,7 +55,9 @@ ROTULOS_CONHECIDOS = [
     "nome do pagador", "pagador final", "pagador", "beneficiario final", "beneficiario",
     "numero do documento", "nº do documento", "no do documento", "num do documento",
     "cpf/cnpj do pagador", "cpf/cnpj", "cpf", "cnpj",
-    "endereco do pagador", "endereco", "bairro", "municipio", "cidade", "uf", "cep",
+    "dados do pagador", "endereco do pagador", "endereco", "bairro / distrito",
+    "bairro/distrito", "bairro", "distrito", "municipio", "munícipio", "cidade",
+    "uf", "cep", "mensagem pagador", "mensagem",
     "data de vencimento", "vencimento", "data do documento", "data de emissao",
     "data de processamento", "data processamento",
     "valor do documento", "valor cobrado", "valor",
@@ -289,32 +295,73 @@ def extrair_dados_pagina(texto: str) -> DadosPagina | None:
     )
     dados.carteira = _apos_rotulo(texto, [r"Carteira"], re.compile(r"\b\d{1,3}\b"), janela=30)
 
-    # Beneficiário: nome + CNPJ na mesma janela
+    # Beneficiário: o nome fica na mesma linha do CNPJ, antes dele (após o
+    # rótulo "Beneficiário" pode haver outros rótulos de cabeçalho).
     m_benef = re.search(r"Benefici[áa]rio\b[:\s]*", texto, re.IGNORECASE)
     if m_benef:
-        trecho = texto[m_benef.end(): m_benef.end() + 200]
+        trecho = texto[m_benef.end(): m_benef.end() + 300]
         m_doc = RE_CPF_CNPJ.search(trecho)
         if m_doc:
             dados.beneficiario_cnpj = m_doc.group(0)
-            nome = trecho[: m_doc.start()]
+            inicio_linha = trecho.rfind("\n", 0, m_doc.start()) + 1
+            nome = trecho[inicio_linha: m_doc.start()]
         else:
-            nome = trecho.splitlines()[0] if trecho.splitlines() else ""
-        nome = RE_SUFIXO_ROTULO_DOC.sub("", nome.strip())
-        dados.beneficiario_nome = (nome.strip(" -:").splitlines() or [""])[0].strip() or None
+            nome = next((l for l in trecho.splitlines() if l.strip()), "")
+        dados.beneficiario_nome = _nome_valido(_nome_na_linha(nome))
 
     _extrair_pagador(texto, dados)
     return dados
 
 
+def _valor_apos_rotulo_linha(linhas: list[str], padrao: str) -> str | None:
+    """Primeira linha de valor após uma linha-rótulo (layout tabular rotulado).
+
+    Ex.: linha 'Endereço' seguida de 'AVENIDA LIGIA...' devolve o endereço.
+    """
+    padrao_re = re.compile(padrao, re.IGNORECASE)
+    for i, linha in enumerate(linhas):
+        if padrao_re.search(linha) and eh_linha_rotulo(linha):
+            for prox in linhas[i + 1:]:
+                if prox.strip() and not eh_linha_rotulo(prox):
+                    return prox.strip()
+            return None
+    return None
+
+
+def _doc_pagador(texto_sem_linha: str, nome: str | None, beneficiario_doc: str) -> str | None:
+    """CPF/CNPJ do pagador buscado na página inteira (a linha digitável já foi
+    removida). Prefere o documento que aparece logo após o nome do pagador,
+    e nunca devolve o documento do beneficiário."""
+    if nome:
+        m = re.search(
+            re.escape(nome) + r"\s+(" + RE_CPF_CNPJ.pattern + r")", texto_sem_linha
+        )
+        if m and re.sub(r"\D", "", m.group(1)) != beneficiario_doc:
+            return m.group(1)
+    for m in RE_CPF_CNPJ.finditer(texto_sem_linha):
+        if re.sub(r"\D", "", m.group(0)) != beneficiario_doc:
+            return m.group(0)
+    return None
+
+
+def _preencher_muni_uf_cep(linha: str, dados: DadosPagina) -> bool:
+    m = RE_MUNI_UF_CEP.search(linha)
+    if not m:
+        return False
+    dados.municipio = m.group(1).strip(" -,")
+    dados.uf = m.group(2)
+    dados.cep = m.group(3) + m.group(4)
+    return True
+
+
 def _extrair_pagador(texto: str, dados: DadosPagina) -> None:
     linhas = _bloco_pagador(texto)
-    if not linhas:
-        return
     beneficiario_doc = re.sub(r"\D", "", dados.beneficiario_cnpj or "")
+    # Remove a linha digitável do texto: seus 14 dígitos finais casam com a
+    # regex de CNPJ e virariam um "documento do pagador" falso.
+    texto_sem_linha = texto.replace(dados.linha_digitavel_bruta, " ")
 
-    # Linhas de conteúdo: ignora cabeçalhos compostos só por rótulos
     conteudo = [l for l in linhas if not eh_linha_rotulo(l)]
-
     idx_nome = None
     for i, linha in enumerate(conteudo):
         nome = _nome_valido(_nome_na_linha(linha))
@@ -323,35 +370,35 @@ def _extrair_pagador(texto: str, dados: DadosPagina) -> None:
             idx_nome = i
             break
 
-    # Documento do pagador: primeiro CPF/CNPJ do bloco que não seja o do
-    # beneficiário (a linha digitável é excluída: seus dígitos enganam a regex)
-    for linha in linhas:
-        if _contem_linha_digitavel(linha):
-            continue
-        doc_achado = None
-        for m_doc in RE_CPF_CNPJ.finditer(linha):
-            if re.sub(r"\D", "", m_doc.group(0)) != beneficiario_doc:
-                doc_achado = m_doc.group(0)
-                break
-        if doc_achado:
-            dados.pagador_cpf_cnpj = doc_achado
-            break
+    # CPF/CNPJ do pagador: buscado na página toda (blocos "Dados do Pagador" e
+    # "Ficha de compensação" ficam separados; o documento costuma estar só num deles)
+    dados.pagador_cpf_cnpj = _doc_pagador(texto_sem_linha, dados.pagador_nome, beneficiario_doc)
 
-    # Endereço: linhas de conteúdo após a linha do nome
-    restantes = conteudo[idx_nome + 1:] if idx_nome is not None else []
-    restantes = [l for l in restantes if not RE_CPF_CNPJ.fullmatch(l)]
-    if restantes:
-        dados.endereco = restantes[0]
-    for linha_end in restantes:
-        m_cep = RE_CEP.search(linha_end)
-        if m_cep:
-            dados.cep = m_cep.group(1) + m_cep.group(2)
-            antes_cep = linha_end[: m_cep.start()]
-            m_mun = RE_MUNICIPIO_UF.search(antes_cep)
-            if m_mun:
-                dados.municipio = m_mun.group(1).strip()
-                dados.uf = m_mun.group(2)
-                bairro = antes_cep[: m_mun.start()].strip(" -,")
-                if bairro and bairro != dados.endereco:
-                    dados.bairro = bairro or None
-            break
+    # --- Endereço: primeiro tenta o layout rotulado (rótulo numa linha, valor na seguinte) ---
+    dados.endereco = _valor_apos_rotulo_linha(linhas, r"Endere[çc]o")
+    dados.bairro = _valor_apos_rotulo_linha(linhas, r"Bairro")
+    linha_cidade = _valor_apos_rotulo_linha(linhas, r"Mun[ií]c[ií]pio|Cidade")
+    if linha_cidade:
+        _preencher_muni_uf_cep(linha_cidade, dados)
+
+    # --- Fallback: varre as linhas de conteúdo após o nome (layout inline) ---
+    if idx_nome is not None:
+        restantes = [l for l in conteudo[idx_nome + 1:] if not RE_CPF_CNPJ.fullmatch(l)]
+        if not dados.endereco and restantes:
+            dados.endereco = restantes[0]
+        if not dados.cep:
+            for linha_end in restantes:
+                m_cep = RE_CEP.search(linha_end)
+                if not m_cep:
+                    continue
+                if not _preencher_muni_uf_cep(linha_end, dados):
+                    dados.cep = m_cep.group(1) + m_cep.group(2)
+                    antes_cep = linha_end[: m_cep.start()]
+                    m_mun = RE_MUNICIPIO_UF.search(antes_cep)
+                    if m_mun:
+                        dados.municipio = m_mun.group(1).strip()
+                        dados.uf = m_mun.group(2)
+                        bairro = antes_cep[: m_mun.start()].strip(" -,")
+                        if bairro and bairro != dados.endereco:
+                            dados.bairro = bairro
+                break

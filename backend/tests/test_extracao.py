@@ -92,6 +92,82 @@ Ficha de Compensação
     assert dados.cep == "30310000"
 
 
+# Texto real de um boleto Sicoob (banco 756) extraído pelo pdfplumber:
+# dois blocos "Pagador" (recibo + ficha), rótulos e valores em linhas separadas,
+# cidade/UF/CEP sem hífen, e a linha digitável real (DVs válidos).
+TEXTO_SICOOB_REAL = """Beneficiário Vencimento Valor do Documento
+CAMF CONSTRUTORA LTDA 42.800.118/0001-44 20/09/2026 9.600,00
+6 - S/N (+) Outros acréscimos (+) Mora / Multa
+LOTEAMENTO FECHADO LE PARC
+(-) Desconto / Abatimento (-) Outras deduções
+Luziânia - GO 72812-762
+Instruções (texto de responsabilidade do beneficiário) Data de Emissão (=) Valor cobrado
+Não cobrar encargos por atraso. 27/07/2026
+Não conceder desconto. Coop Contr/Cód. Beneficiário
+5004/1858793
+Nosso Número
+9-4
+Dados do Pagador
+Nome do pagador Número do Documento
+JANICIO DE CARVALHO 70-01
+Endereço
+AVENIDA LIGIA DE OLIVEIRA MACHADO
+Bairro / Distrito
+RESIDENCIAL ALTO DAS CARAÍBAS
+Munícipio UF CEP
+LUZIANIA GO 72813-105
+Mensagem Pagador
+Autenticação mecânica - Recibo do pagador
+756 75691.50043 01185.879309 00000.940015 2 15750000960000
+Local de pagamento Vencimento
+PAGAVEL PREFERENCIALMENTE NO SICOOB 20/09/2026
+Beneficiário Cooperativa contratante/Cód. Beneficiário
+CAMF CONSTRUTORA LTDA 42.800.118/0001-44 5004/1858793
+Data do documento N. documento Espécie Aceite Data processamento Nosso número
+27/07/2026 70-01 DM N 27/07/2026 9-4
+Uso do Banco Carteira Espécie Quantidade Valor Valor documento
+1 R$ 0,00 9.600,00
+Pagador (+) Outros acréscimos
+JANICIO DE CARVALHO 053.900.981-45
+AVENIDA LIGIA DE OLIVEIRA MACHADO
+RESIDENCIAL ALTO DAS CARAÍBAS (=) Valor cobrado
+LUZIANIA - GO 72813-105
+Beneficiário final CAMF CONSTRUTORA LTDA 42.800.118/0001-44
+Autenticação mecânica - Ficha de compensação
+"""
+
+
+def test_boleto_sicoob_real_extrai_pagador_completo():
+    """Regressão do layout real: nome, CPF (em bloco separado do nome),
+    endereço e cidade/UF/CEP sem hífen são todos reconhecidos."""
+    dados = extrair_dados_pagina(TEXTO_SICOOB_REAL)
+    assert dados is not None
+    assert dados.pagador_nome == "JANICIO DE CARVALHO"
+    assert dados.pagador_cpf_cnpj == "053.900.981-45"  # CPF do bloco da ficha
+    assert dados.endereco == "AVENIDA LIGIA DE OLIVEIRA MACHADO"
+    assert dados.bairro == "RESIDENCIAL ALTO DAS CARAÍBAS"
+    assert dados.municipio == "LUZIANIA"
+    assert dados.uf == "GO"
+    assert dados.cep == "72813105"
+    assert dados.num_documento == "70-01"
+    assert dados.nosso_numero == "9-4"
+    assert dados.vencimento == date(2026, 9, 20)
+    assert dados.valor == Decimal("9600.00")
+    assert dados.beneficiario_nome == "CAMF CONSTRUTORA LTDA"
+    assert dados.beneficiario_cnpj == "42.800.118/0001-44"
+
+
+def test_boleto_real_sem_divergencias_de_validacao():
+    from app.services.linha_digitavel import analisar
+
+    dados = extrair_dados_pagina(TEXTO_SICOOB_REAL)
+    analise = analisar(dados.linha_digitavel_bruta)
+    assert analise is not None
+    assert analise.erros == []
+    assert analise.valor == dados.valor
+    assert analise.vencimento == dados.vencimento
+
+
 def test_cnpj_do_beneficiario_nao_vira_documento_do_pagador():
     linha = montar_linha(
         campo_livre="8" * 25, valor=Decimal("500.00"), vencimento=date(2026, 9, 1)
