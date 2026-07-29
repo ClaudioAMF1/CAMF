@@ -22,3 +22,21 @@ export const IconUpload = () => (
 export const IconHistorico = () => (
   <svg {...base}><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></svg>
 )
+export const IconSeta = () => (
+  <svg {...base} strokeWidth="2.2"><path d="m9 6 6 6-6 6" /></svg>
+)
+export const IconSol = () => (
+  <svg {...base}><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></svg>
+)
+export const IconLua = () => (
+  <svg {...base}><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z" /></svg>
+)
+export const IconCheck = () => (
+  <svg {...base} strokeWidth="2.4"><path d="m4.5 12.5 5 5 10-11" /></svg>
+)
+export const IconVazio = () => (
+  <svg {...base}><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5v-9Z" /><path d="m3 7.5 9 4.5 9-4.5M12 12v9" /></svg>
+)
+export const IconBusca = () => (
+  <svg {...base}><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4.5 4.5" /></svg>
+)

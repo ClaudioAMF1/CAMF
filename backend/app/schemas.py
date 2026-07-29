@@ -121,6 +121,37 @@ class PaginaBoletos(BaseModel):
     pages: int
 
 
+class GrupoPagador(BaseModel):
+    """Uma linha por pessoa: os boletos dela ficam sob o nome, não repetidos."""
+
+    pagador_id: int
+    nome: str
+    cpf_cnpj: str | None
+    provisorio: bool
+    qtd: int
+    total: Decimal
+    qtd_aberto: int
+    total_aberto: Decimal
+    qtd_pago: int
+    total_pago: Decimal
+    qtd_vencido: int
+    total_vencido: Decimal
+    qtd_revisao: int
+    proximo_vencimento: date | None
+
+
+class PagarLoteIn(BaseModel):
+    ids: list[int]
+    data_pagamento: date
+    # Sem valor_pago, cada boleto é baixado pelo próprio valor
+    valor_pago: Decimal | None = None
+
+
+class ResultadoLote(BaseModel):
+    pagos: int
+    ignorados: list[int] = Field(default_factory=list)
+
+
 # ---------- Upload ----------
 
 class UploadOut(ORMModel):

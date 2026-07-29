@@ -197,6 +197,26 @@ GET    /api/dashboard/alertas?dias=30
 GET    /api/relatorios/pdf | xlsx | csv   respeitando os filtros
 ```
 
+## Baixa de pagamento: manual, em lote — não automática
+
+Não há como o sistema saber sozinho que um boleto foi pago: essa informação
+está no banco, não no PDF. Um boleto emitido é apenas uma instrução de
+cobrança. As formas de saber da liquidação são:
+
+| Caminho | O que exige | Situação |
+|---|---|---|
+| **Manual** (aqui) | nada | pronto — botão "Pagar" por boleto |
+| **Baixa em lote** (aqui) | nada | pronto — selecionar vários e baixar de uma vez |
+| **Arquivo de retorno CNAB** (240/400) | baixar o retorno no Sicoob e importar | não implementado |
+| **API de Cobrança Sicoob / Open Finance** | convênio, credenciais e certificado digital | não implementado |
+
+O caminho realista para automatizar sem burocracia é o **arquivo de retorno
+CNAB**: o Sicoob gera um arquivo com as liquidações do dia (código de
+ocorrência de liquidação, nosso número, valor e data do pagamento), que seria
+importado para dar baixa automaticamente. Isso não foi implementado porque o
+layout precisa ser validado contra um arquivo de retorno real — a lição da
+extração dos PDFs: especificar por suposição gera parser errado.
+
 ## Frontend
 
 Formatação brasileira em tudo (`R$ 1.234,56`, `dd/mm/aaaa`):
@@ -206,9 +226,14 @@ Formatação brasileira em tudo (`R$ 1.234,56`, `dd/mm/aaaa`):
   mesmo assim".
 - **Dashboard**: cards, barras por pagador, linha por mês de vencimento, pizza
   por situação, alertas de vencimento e tabela agrupada pagador × valor.
-- **Boletos**: tabela paginada/ordenável, linhas de revisão manual destacadas
-  em amarelo com as divergências, edição inline, marcar como pago, histórico
-  de auditoria em drawer, soft delete/restauração.
+- **Boletos**: dois modos —
+  - **Por pessoa** (padrão): uma linha por pagador, com quantidade, barra de
+    composição (aberto/pago/vencido), próximo vencimento e total. Clicar no
+    nome expande os boletos daquela pessoa, então o nome nunca se repete.
+  - **Lista**: tabela completa paginada e ordenável.
+  Em ambos: seleção múltipla com **baixa em lote**, edição inline, linhas de
+  revisão manual em amarelo com as divergências, histórico de auditoria em
+  drawer, soft delete/restauração.
 - **Pagadores**: lista com totais e nomes alternativos, edição, painel de
   sugestões de merge.
 - **Filtros globais** (pagador, período, situação, qualidade) aplicados a

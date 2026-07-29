@@ -382,6 +382,81 @@ def test_correcao_cpf_provisorio_faz_merge(client):
     assert len(client.get("/api/pagadores").json()) == 1
 
 
+# ---------- Agrupamento e baixa em lote ----------
+
+def test_agrupamento_por_pagador(client):
+    outro = "11.222.333/0001-81"
+    enviar(client, {"a.pdf": [
+        _pagina(1, nome="JOAO DA SILVA", cpf=CPF_A, valor=Decimal("100.00")),
+        _pagina(2, nome="JOAO DA SILVA", cpf=CPF_A, valor=Decimal("200.00")),
+        _pagina(3, nome="EMPRESA XYZ", cpf=outro, valor=Decimal("50.00")),
+    ]})
+    grupos = client.get("/api/boletos/por-pagador").json()
+    assert len(grupos) == 2  # uma linha por pessoa, nome não se repete
+
+    joao = next(g for g in grupos if g["nome"] == "JOAO DA SILVA")
+    assert joao["qtd"] == 2
+    assert joao["total"] == "300.00"
+    assert joao["qtd_aberto"] == 2
+    assert joao["total_aberto"] == "300.00"
+    assert joao["qtd_pago"] == 0
+    assert joao["proximo_vencimento"] == "2026-08-10"
+    # ordenado por total desc
+    assert grupos[0]["nome"] == "JOAO DA SILVA"
+
+    # ao expandir: os boletos daquela pessoa
+    boletos = client.get(f"/api/boletos?pagador_id={joao['pagador_id']}").json()
+    assert boletos["total"] == 2
+
+
+def test_agrupamento_respeita_filtros(client):
+    enviar(client, {"a.pdf": [
+        _pagina(1, valor=Decimal("100.00")),
+        _pagina(2, valor=Decimal("900.00")),
+    ]})
+    grupos = client.get("/api/boletos/por-pagador?valor_min=500").json()
+    assert len(grupos) == 1
+    assert grupos[0]["qtd"] == 1
+    assert grupos[0]["total"] == "900.00"
+
+
+def test_agrupamento_conta_pagos_e_vencidos(client):
+    vencido = texto_boleto("JOAO DA SILVA", CPF_A, Decimal("70.00"), date(2020, 1, 10), sequencia=1)
+    futuro = texto_boleto("JOAO DA SILVA", CPF_A, Decimal("30.00"), date(2030, 1, 10), sequencia=2)
+    enviar(client, {"a.pdf": [vencido, futuro]})
+
+    alvo = client.get("/api/boletos?valor_min=30&valor_max=30").json()["items"][0]
+    client.post(f"/api/boletos/{alvo['id']}/pagar",
+                json={"data_pagamento": "2026-01-05", "valor_pago": "30.00"})
+
+    grupo = client.get("/api/boletos/por-pagador").json()[0]
+    assert grupo["qtd_pago"] == 1 and grupo["total_pago"] == "30.00"
+    assert grupo["qtd_vencido"] == 1 and grupo["total_vencido"] == "70.00"
+
+
+def test_pagar_lote(client):
+    enviar(client, {"a.pdf": [
+        _pagina(1, valor=Decimal("100.00")),
+        _pagina(2, valor=Decimal("250.00")),
+    ]})
+    ids = [b["id"] for b in client.get("/api/boletos").json()["items"]]
+
+    resp = client.post("/api/boletos/pagar-lote",
+                       json={"ids": ids, "data_pagamento": "2026-08-01"})
+    assert resp.json()["pagos"] == 2
+
+    boletos = client.get("/api/boletos").json()["items"]
+    assert all(b["situacao"] == "pago" for b in boletos)
+    # sem valor_pago informado, cada boleto é baixado pelo próprio valor
+    assert {b["valor_pago"] for b in boletos} == {"100.00", "250.00"}
+
+    # reenviar o mesmo lote não dá erro: já pagos são ignorados
+    resp2 = client.post("/api/boletos/pagar-lote",
+                        json={"ids": ids, "data_pagamento": "2026-08-01"})
+    assert resp2.json()["pagos"] == 0
+    assert sorted(resp2.json()["ignorados"]) == sorted(ids)
+
+
 # ---------- Dashboard e relatórios ----------
 
 def test_dashboard_agregacoes(client):

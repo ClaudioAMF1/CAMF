@@ -1,7 +1,9 @@
 import math
+from datetime import date
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session, joinedload
 
 from .. import audit, schemas
@@ -75,6 +77,104 @@ def listar(
         size=size,
         pages=max(1, math.ceil(total / size)),
     )
+
+
+@router.get("/por-pagador", response_model=list[schemas.GrupoPagador])
+def agrupados_por_pagador(
+    filtros: FiltrosBoleto = Depends(), db: Session = Depends(get_db)
+):
+    """Uma linha por pessoa, com os totais dela — os boletos são carregados
+    sob demanda ao expandir o nome (GET /boletos?pagador_id=...)."""
+    hoje = date.today()
+    eh_vencido = (Boleto.situacao == Situacao.aberto) & (Boleto.vencimento < hoje)
+
+    def soma(condicao):
+        return func.coalesce(func.sum(case((condicao, Boleto.valor), else_=0)), 0)
+
+    def conta(condicao):
+        return func.coalesce(func.sum(case((condicao, 1), else_=0)), 0)
+
+    stmt = filtros.aplicar(
+        select(
+            Pagador.id,
+            Pagador.nome,
+            Pagador.cpf_cnpj,
+            func.count(Boleto.id),
+            func.coalesce(func.sum(Boleto.valor), 0),
+            conta(Boleto.situacao == Situacao.aberto),
+            soma(Boleto.situacao == Situacao.aberto),
+            conta(Boleto.situacao == Situacao.pago),
+            soma(Boleto.situacao == Situacao.pago),
+            conta(eh_vencido),
+            soma(eh_vencido),
+            conta(Boleto.qualidade == Qualidade.revisao_manual),
+            func.min(
+                case((Boleto.situacao == Situacao.aberto, Boleto.vencimento))
+            ),
+        )
+        .join(Pagador, Boleto.pagador_id == Pagador.id)
+        .group_by(Pagador.id, Pagador.nome, Pagador.cpf_cnpj)
+        .order_by(func.coalesce(func.sum(Boleto.valor), 0).desc())
+    )
+
+    grupos = []
+    for linha in db.execute(stmt):
+        (pid, nome, cpf, qtd, total, q_ab, t_ab, q_pg, t_pg,
+         q_vc, t_vc, q_rev, prox) = linha
+        grupos.append(
+            schemas.GrupoPagador(
+                pagador_id=pid,
+                nome=nome,
+                cpf_cnpj=cpf,
+                provisorio=cpf is None,
+                qtd=qtd,
+                total=Decimal(total),
+                qtd_aberto=q_ab,
+                total_aberto=Decimal(t_ab),
+                qtd_pago=q_pg,
+                total_pago=Decimal(t_pg),
+                qtd_vencido=q_vc,
+                total_vencido=Decimal(t_vc),
+                qtd_revisao=q_rev,
+                proximo_vencimento=prox,
+            )
+        )
+    return grupos
+
+
+@router.post("/pagar-lote", response_model=schemas.ResultadoLote)
+def pagar_lote(
+    corpo: schemas.PagarLoteIn,
+    db: Session = Depends(get_db),
+    autor: str = Depends(get_autor),
+):
+    """Baixa vários boletos de uma vez. Já pagos são ignorados, não viram erro."""
+    if not corpo.ids:
+        raise HTTPException(status_code=400, detail="Nenhum boleto informado")
+
+    boletos = db.execute(select(Boleto).where(Boleto.id.in_(corpo.ids))).scalars().all()
+    encontrados = {b.id for b in boletos}
+    ignorados = [i for i in corpo.ids if i not in encontrados]
+    pagos = 0
+
+    for boleto in boletos:
+        if boleto.situacao == Situacao.pago:
+            ignorados.append(boleto.id)
+            continue
+        audit.registrar(
+            db, "boleto", boleto.id, "marcar_pago",
+            campo="situacao",
+            valor_anterior=boleto.situacao.value,
+            valor_novo=Situacao.pago.value,
+            origem="manual", autor=autor,
+        )
+        boleto.situacao = Situacao.pago
+        boleto.data_pagamento = corpo.data_pagamento
+        boleto.valor_pago = corpo.valor_pago if corpo.valor_pago is not None else boleto.valor
+        pagos += 1
+
+    db.commit()
+    return schemas.ResultadoLote(pagos=pagos, ignorados=sorted(ignorados))
 
 
 @router.get("/{boleto_id}", response_model=schemas.BoletoOut)
