@@ -1,7 +1,7 @@
 from dataclasses import asdict
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -10,7 +10,7 @@ from .. import audit, schemas
 from ..database import get_db
 from ..deps import get_autor
 from ..models import Boleto, Upload
-from ..services import extracao, linha_digitavel
+from ..services import armazenamento, extracao, linha_digitavel
 from ..services.processamento import (
     ArquivoJaProcessado,
     ResultadoArquivo,
@@ -135,6 +135,24 @@ def _obter(db: Session, upload_id: int, incluir_deletados: bool = False) -> Uplo
 @router.get("/{upload_id}", response_model=schemas.UploadOut)
 def detalhar(upload_id: int, db: Session = Depends(get_db)):
     return _obter(db, upload_id)
+
+
+@router.get("/{upload_id}/pdf")
+def pdf_do_upload(upload_id: int, db: Session = Depends(get_db)):
+    """Abre o arquivo PDF original completo, como enviado."""
+    upload = _obter(db, upload_id, incluir_deletados=True)
+    try:
+        conteudo = armazenamento.ler(upload.hash_sha256)
+    except armazenamento.ArquivoIndisponivel:
+        raise HTTPException(
+            status_code=404,
+            detail="PDF original não está guardado para este upload. Reenvie o arquivo.",
+        )
+    return Response(
+        content=conteudo,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{upload.nome_arquivo}"'},
+    )
 
 
 @router.delete("/{upload_id}", response_model=schemas.UploadOut)

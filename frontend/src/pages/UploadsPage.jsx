@@ -57,7 +57,12 @@ export default function UploadsPage() {
               {(data || []).map((u) => (
                 <tr key={u.id} className={u.deletado_em ? 'deletado' : ''}>
                   <td style={{ color: 'var(--tinta-fraca)' }}>{u.id}</td>
-                  <td className="principal">{u.nome_arquivo}</td>
+                  <td className="principal">
+                    <a href={`/api/uploads/${u.id}/pdf`} target="_blank" rel="noreferrer"
+                       title="Abrir o PDF original" style={{ color: 'var(--azul)', textDecoration: 'none' }}>
+                      {u.nome_arquivo}
+                    </a>
+                  </td>
                   <td>{fmtDataHora(u.criado_em)}</td>
                   <td className="num">{u.qtd_paginas}</td>
                   <td className="num">{u.qtd_boletos_novos || '—'}</td>

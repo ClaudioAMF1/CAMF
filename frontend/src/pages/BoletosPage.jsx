@@ -4,6 +4,7 @@ import { apiGet, apiSend } from '../api'
 import AuditDrawer from '../components/AuditDrawer'
 import ExportButtons from '../components/ExportButtons'
 import FiltrosBar from '../components/FiltrosBar'
+import PdfViewer from '../components/PdfViewer'
 import { useFiltros } from '../filtros'
 import { fmtBRL, fmtCpfCnpj, fmtData, ROTULOS_DIVERGENCIA, ROTULOS_SITUACAO } from '../format'
 import { IconSeta } from '../icons'
@@ -180,7 +181,8 @@ function GrupoPagador({ grupo, filtros, selecionados, alternar, acoes, editando,
                   {(data?.items || []).map((b) => (
                     <LinhaBoleto
                       key={b.id} b={b} colunas={7}
-                      selecionados={selecionados} alternar={alternar} acoes={acoes}
+                      selecionados={selecionados} alternar={alternar}
+                      acoes={(x) => acoes(x, grupo.nome)}
                       editando={editando} setEditando={setEditando} onSalvar={onSalvar}
                     />
                   ))}
@@ -205,6 +207,7 @@ export default function BoletosPage() {
   const [selecionados, setSelecionados] = useState(new Map())
   const [editando, setEditando] = useState(null)
   const [pagando, setPagando] = useState(null)
+  const [vendoPdf, setVendoPdf] = useState(null)
   const [drawerId, setDrawerId] = useState(null)
   const queryClient = useQueryClient()
   const notificar = useToast()
@@ -269,8 +272,12 @@ export default function BoletosPage() {
     setPagando(null)
   }
 
-  const acoes = (b) => (
+  const acoes = (b, nomePagador) => (
     <div className="acoes" onClick={(e) => e.stopPropagation()}>
+      <button className="mini" title="Ver o boleto original em PDF"
+        onClick={() => setVendoPdf({ ...b, pagador_nome: b.pagador_nome || nomePagador })}>
+        Ver PDF
+      </button>
       {!b.deletado_em && b.situacao === 'aberto' && (
         <button className="principal-btn mini" onClick={() => setPagando(b)}>Pagar</button>
       )}
@@ -441,6 +448,7 @@ export default function BoletosPage() {
       )}
 
       {pagando && <ModalPagar alvo={pagando} onFechar={() => setPagando(null)} onConfirmar={confirmarPagamento} />}
+      {vendoPdf && <PdfViewer boleto={vendoPdf} onFechar={() => setVendoPdf(null)} />}
       <AuditDrawer boletoId={drawerId} onFechar={() => setDrawerId(null)} />
     </div>
   )

@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from .. import audit
 from ..models import Boleto, Pagador, Qualidade, Situacao, Upload
-from . import documentos, extracao, linha_digitavel
+from . import armazenamento, documentos, extracao, linha_digitavel
 
 logger = logging.getLogger("camf.processamento")
 
@@ -168,10 +168,12 @@ def _preencher_extracao(
     dados: extracao.DadosPagina,
     divergencias: list[str],
     observacoes: list[str],
+    pagina: int | None = None,
 ) -> None:
     """Aplica ao boleto os campos vindos da extração (linha digitável autoritativa)."""
     boleto.upload_id = upload_id
     boleto.pagador_id = pagador_id
+    boleto.pagina = pagina
     boleto.codigo_barras = analise.codigo_barras
     boleto.nosso_numero = dados.nosso_numero
     boleto.num_documento = dados.num_documento
@@ -205,6 +207,8 @@ def processar_arquivo(
         raise ArquivoJaProcessado(anterior)
 
     textos = extracao.extrair_textos_paginas(conteudo)
+    # Guarda o original para que cada boleto possa ser reaberto depois
+    armazenamento.guardar(hash_sha256, conteudo)
 
     upload = Upload(
         nome_arquivo=nome_arquivo,
@@ -258,7 +262,7 @@ def processar_arquivo(
             boleto = existente
             estava_deletado = boleto.deletado_em is not None
             _preencher_extracao(boleto, upload.id, pagador.id, analise, dados,
-                                divergencias, observacoes)
+                                divergencias, observacoes, pagina=num_pagina)
             if estava_deletado:
                 boleto.restaurar()
             audit.registrar(
@@ -271,7 +275,7 @@ def processar_arquivo(
         else:
             boleto = Boleto(linha_digitavel=analise.linha_digitavel, situacao=Situacao.aberto)
             _preencher_extracao(boleto, upload.id, pagador.id, analise, dados,
-                                divergencias, observacoes)
+                                divergencias, observacoes, pagina=num_pagina)
             db.add(boleto)
             db.flush()
             audit.registrar(db, "boleto", boleto.id, "criar", origem="extracao", autor=autor)

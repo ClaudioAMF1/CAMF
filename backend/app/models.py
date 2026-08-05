@@ -106,6 +106,8 @@ class Boleto(Base, TimestampMixin, SoftDeleteMixin):
         String(47), unique=True, nullable=False
     )
     codigo_barras: Mapped[str] = mapped_column(String(44), nullable=False)
+    # Página do PDF de origem, para reabrir só o boleto (1-indexado)
+    pagina: Mapped[int | None] = mapped_column(Integer)
     nosso_numero: Mapped[str | None] = mapped_column(String(30))
     num_documento: Mapped[str | None] = mapped_column(String(30))
     especie: Mapped[str | None] = mapped_column(String(10))

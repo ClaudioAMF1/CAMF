@@ -197,6 +197,27 @@ GET    /api/dashboard/alertas?dias=30
 GET    /api/relatorios/pdf | xlsx | csv   respeitando os filtros
 ```
 
+## Visualizar o boleto original
+
+O PDF enviado é guardado (por hash SHA-256, então reenviar o mesmo arquivo não
+duplica nada) e cada boleto grava a **página** de onde veio. Assim, o botão
+**"Ver PDF"** abre exatamente aquele boleto — não o arquivo de 45 páginas:
+
+```
+GET /api/boletos/{id}/pdf                → só a página daquele boleto
+GET /api/boletos/{id}/pdf?completo=true  → o arquivo inteiro
+GET /api/uploads/{id}/pdf                → o arquivo original do upload
+```
+
+O recorte da página é feito com pypdf, e o PDF é servido `inline` para abrir no
+visualizador do navegador (com opções de baixar e abrir em nova aba).
+
+Os arquivos ficam em `ARMAZENAMENTO_DIR` (padrão `./armazenamento`; no Docker,
+o volume `pdfs` montado em `/dados/pdfs`, que persiste entre recriações do
+container). Boletos importados **antes** deste recurso não têm o arquivo
+guardado: a API responde 404 explicando que basta reenviar o PDF com
+"Reprocessar e atualizar" para passar a visualizá-lo.
+
 ## Baixa de pagamento: manual, em lote — não automática
 
 Não há como o sistema saber sozinho que um boleto foi pago: essa informação
@@ -231,9 +252,9 @@ Formatação brasileira em tudo (`R$ 1.234,56`, `dd/mm/aaaa`):
     composição (aberto/pago/vencido), próximo vencimento e total. Clicar no
     nome expande os boletos daquela pessoa, então o nome nunca se repete.
   - **Lista**: tabela completa paginada e ordenável.
-  Em ambos: seleção múltipla com **baixa em lote**, edição inline, linhas de
-  revisão manual em amarelo com as divergências, histórico de auditoria em
-  drawer, soft delete/restauração.
+  Em ambos: **"Ver PDF"** abre o boleto original, seleção múltipla com **baixa
+  em lote**, edição inline, linhas de revisão manual em amarelo com as
+  divergências, histórico de auditoria em drawer, soft delete/restauração.
 - **Pagadores**: lista com totais e nomes alternativos, edição, painel de
   sugestões de merge.
 - **Filtros globais** (pagador, período, situação, qualidade) aplicados a

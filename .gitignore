@@ -11,3 +11,6 @@ dist/
 
 # Ambiente
 .env
+
+# PDFs originais guardados em dev
+backend/armazenamento/

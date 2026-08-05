@@ -418,6 +418,22 @@ input::placeholder { color: var(--tinta-fraca); }
 .trilha .quando { font-size: 11px; color: var(--tinta-3); }
 .trilha code { background: var(--superficie-3); padding: 1px 6px; border-radius: 4px; font-size: 11.5px; }
 
+/* ---------------- Visualizador de PDF ---------------- */
+.visor {
+  position: fixed; inset: 3vh 3vw; z-index: 61; display: flex; flex-direction: column;
+  background: var(--superficie); border-radius: var(--r-lg); overflow: hidden;
+  box-shadow: var(--sombra-3); animation: entrar 200ms cubic-bezier(.32, .72, 0, 1);
+}
+.visor-topo {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 13px 18px; border-bottom: 1px solid var(--linha); background: var(--superficie-2);
+}
+.visor-topo .titulo { font-weight: 620; letter-spacing: -.01em; }
+.visor-topo .sub-info { font-size: 12.5px; color: var(--tinta-3); }
+.visor-corpo { flex: 1; background: var(--superficie-3); min-height: 0; }
+.visor-corpo iframe { width: 100%; height: 100%; border: none; display: block; }
+.visor-erro { display: grid; place-items: center; height: 100%; padding: 30px; text-align: center; }
+
 /* ---------------- Toasts ---------------- */
 .toasts { position: fixed; bottom: 20px; right: 20px; z-index: 90; display: flex; flex-direction: column; gap: 9px; }
 .toast {

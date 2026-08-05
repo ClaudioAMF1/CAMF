@@ -17,6 +17,10 @@ services:
     build: ./backend
     environment:
       DATABASE_URL: postgresql+psycopg2://camf:camf@db:5432/camf
+      ARMAZENAMENTO_DIR: /dados/pdfs
+    volumes:
+      # PDFs originais persistem entre recriações do container
+      - pdfs:/dados/pdfs
     depends_on:
       db:
         condition: service_healthy
@@ -32,3 +36,4 @@ services:
 
 volumes:
   pgdata:
+  pdfs:

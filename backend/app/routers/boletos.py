@@ -2,15 +2,15 @@ import math
 from datetime import date
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session, joinedload
 
 from .. import audit, schemas
 from ..database import get_db
 from ..deps import FiltrosBoleto, get_autor
-from ..models import Auditoria, Boleto, Pagador, Qualidade, Situacao
-from ..services import linha_digitavel
+from ..models import Auditoria, Boleto, Pagador, Qualidade, Situacao, Upload
+from ..services import armazenamento, linha_digitavel
 
 router = APIRouter(prefix="/api/boletos", tags=["boletos"])
 
@@ -180,6 +180,51 @@ def pagar_lote(
 @router.get("/{boleto_id}", response_model=schemas.BoletoOut)
 def detalhar(boleto_id: int, db: Session = Depends(get_db)):
     return _para_out(_obter(db, boleto_id, incluir_deletados=True))
+
+
+@router.get("/{boleto_id}/pdf")
+def pdf_do_boleto(
+    boleto_id: int,
+    completo: bool = Query(default=False, description="Devolve o arquivo inteiro"),
+    db: Session = Depends(get_db),
+):
+    """Abre o boleto original em PDF — só a página dele, por padrão."""
+    boleto = _obter(db, boleto_id, incluir_deletados=True)
+    upload = db.execute(
+        select(Upload)
+        .where(Upload.id == boleto.upload_id)
+        .execution_options(incluir_deletados=True)
+    ).scalar_one_or_none()
+    if upload is None:
+        raise HTTPException(status_code=404, detail="Upload de origem não encontrado")
+
+    try:
+        if completo or boleto.pagina is None:
+            conteudo = armazenamento.ler(upload.hash_sha256)
+            nome = upload.nome_arquivo
+        else:
+            conteudo = armazenamento.extrair_pagina(upload.hash_sha256, boleto.pagina)
+            base = (boleto.num_documento or str(boleto.id)).replace("/", "-")
+            nome = f"boleto_{base}.pdf"
+    except armazenamento.ArquivoIndisponivel:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "PDF original não está guardado para este boleto. Reenvie o arquivo "
+                "em Enviar PDFs (com 'Reprocessar e atualizar') para poder visualizá-lo."
+            ),
+        )
+    except Exception:
+        raise HTTPException(status_code=422, detail="Não foi possível ler o PDF original")
+
+    return Response(
+        content=conteudo,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'inline; filename="{nome}"',
+            "Cache-Control": "private, max-age=300",
+        },
+    )
 
 
 @router.get("/{boleto_id}/auditoria", response_model=list[schemas.AuditoriaOut])

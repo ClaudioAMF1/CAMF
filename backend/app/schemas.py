@@ -65,6 +65,7 @@ class BoletoOut(ORMModel):
     pagador_id: int
     linha_digitavel: str
     codigo_barras: str
+    pagina: int | None = None
     nosso_numero: str | None
     num_documento: str | None
     especie: str | None
