@@ -154,6 +154,15 @@ class ResultadoLote(BaseModel):
     ignorados: list[int] = Field(default_factory=list)
 
 
+class IdsIn(BaseModel):
+    ids: list[int]
+
+
+class ResultadoAcaoLote(BaseModel):
+    afetados: int
+    ignorados: list[int] = Field(default_factory=list)
+
+
 # ---------- Upload ----------
 
 class UploadOut(ORMModel):

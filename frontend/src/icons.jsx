@@ -46,6 +46,9 @@ export const IconBaixar = () => (
 export const IconVencimentos = () => (
   <svg {...base}><rect x="3" y="4.5" width="18" height="16" rx="2" /><path d="M3 9.5h18M8 2.5v4M16 2.5v4" /><path d="M12 13v3.5" /><circle cx="12" cy="12.4" r=".1" /></svg>
 )
+export const IconLixeira = () => (
+  <svg {...base}><path d="M4 6.5h16M9.5 6.5V4.8a1.3 1.3 0 0 1 1.3-1.3h2.4a1.3 1.3 0 0 1 1.3 1.3v1.7" /><path d="M6.5 6.5 7.4 19a1.6 1.6 0 0 0 1.6 1.5h6a1.6 1.6 0 0 0 1.6-1.5l.9-12.5" /><path d="M10.5 10.5v6M13.5 10.5v6" /></svg>
+)
 export const IconBusca = () => (
   <svg {...base}><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4.5 4.5" /></svg>
 )

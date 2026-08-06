@@ -7,7 +7,7 @@ import FiltrosBar from '../components/FiltrosBar'
 import PdfViewer from '../components/PdfViewer'
 import { useFiltros } from '../filtros'
 import { fmtBRL, fmtCpfCnpj, fmtData, ROTULOS_DIVERGENCIA, ROTULOS_SITUACAO } from '../format'
-import { IconBaixar, IconOlho, IconSeta } from '../icons'
+import { IconBaixar, IconHistorico, IconLixeira, IconOlho, IconSeta } from '../icons'
 import { LinhasEsqueleto, Modal, useToast, Vazio } from '../ui'
 
 const hojeISO = () => new Date().toISOString().slice(0, 10)
@@ -99,9 +99,8 @@ function LinhaBoleto({ b, selecionados, alternar, acoes, colunas, editando, setE
   return (
     <tr className={`${b.qualidade === 'revisao_manual' ? 'revisao' : ''} ${b.deletado_em ? 'deletado' : ''} ${marcado ? 'selecionada' : ''}`}>
       <td style={{ width: 34 }}>
-        {!b.deletado_em && b.situacao === 'aberto' && (
-          <input type="checkbox" checked={marcado} onChange={() => alternar(b)} aria-label={`Selecionar boleto ${b.num_documento || b.id}`} />
-        )}
+        <input type="checkbox" checked={marcado} onChange={() => alternar(b)}
+          aria-label={`Selecionar boleto ${b.num_documento || b.id}`} />
       </td>
       <td className="principal">{b.num_documento || `#${b.id}`}</td>
       <td>{fmtData(b.vencimento)}</td>
@@ -254,6 +253,33 @@ export default function BoletosPage() {
     setEditando(null)
   }
 
+  const selecao = [...selecionados.values()]
+  const temDeletadosNaSelecao = selecao.some((b) => b.deletado_em)
+  const paraPagar = selecao.filter((b) => !b.deletado_em && b.situacao === 'aberto')
+  const podePagarSelecao = paraPagar.length > 0
+
+  const restaurarSelecionados = () => {
+    apiSend('POST', '/boletos/restaurar-lote', { ids: [...selecionados.keys()] })
+      .then((r) => {
+        invalidar()
+        setSelecionados(new Map())
+        notificar(`${r.afetados} boleto(s) restaurados`)
+      })
+      .catch(aoErro)
+  }
+
+  const deletarSelecionados = () => {
+    const ids = [...selecionados.keys()]
+    if (!confirm(`Deletar ${ids.length} boleto(s)? Eles são arquivados e podem ser restaurados depois.`)) return
+    apiSend('POST', '/boletos/deletar-lote', { ids })
+      .then((r) => {
+        invalidar()
+        setSelecionados(new Map())
+        notificar(`${r.afetados} boleto(s) deletados`)
+      })
+      .catch(aoErro)
+  }
+
   const confirmarPagamento = (form) => {
     const emLote = Array.isArray(pagando)
     const corpoComum = {
@@ -278,17 +304,22 @@ export default function BoletosPage() {
         onClick={() => setVendoPdf({ ...b, pagador_nome: b.pagador_nome || nomePagador })}>
         <IconOlho /> PDF
       </button>
-      <a className="botao mini" href={`/api/boletos/${b.id}/pdf`} download
-         title="Baixar o boleto" onClick={(e) => e.stopPropagation()}>
+      <a className="botao mini so-icone" href={`/api/boletos/${b.id}/pdf`} download
+         title="Baixar o boleto em PDF" onClick={(e) => e.stopPropagation()}>
         <IconBaixar />
       </a>
       {!b.deletado_em && b.situacao === 'aberto' && (
         <button className="principal-btn mini" onClick={() => setPagando(b)}>Pagar</button>
       )}
       {!b.deletado_em && <button className="mini" onClick={() => setEditando(b.id)}>Editar</button>}
-      <button className="mini fantasma" onClick={() => setDrawerId(b.id)}>Histórico</button>
+      <button className="mini fantasma so-icone" title="Histórico do boleto" onClick={() => setDrawerId(b.id)}>
+        <IconHistorico />
+      </button>
       {!b.deletado_em ? (
-        <button className="mini fantasma perigo" onClick={() => mut.mutate({ metodo: 'DELETE', path: `/boletos/${b.id}` })}>Deletar</button>
+        <button className="mini fantasma perigo so-icone" title="Deletar boleto"
+          onClick={() => mut.mutate({ metodo: 'DELETE', path: `/boletos/${b.id}` })}>
+          <IconLixeira />
+        </button>
       ) : (
         <button className="mini" onClick={() => mut.mutate({ metodo: 'POST', path: `/boletos/${b.id}/restaurar` })}>Restaurar</button>
       )}
@@ -395,9 +426,8 @@ export default function BoletosPage() {
                   ) : (
                     <tr key={b.id} className={`${b.qualidade === 'revisao_manual' ? 'revisao' : ''} ${b.deletado_em ? 'deletado' : ''} ${selecionados.has(b.id) ? 'selecionada' : ''}`}>
                       <td>
-                        {!b.deletado_em && b.situacao === 'aberto' && (
-                          <input type="checkbox" checked={selecionados.has(b.id)} onChange={() => alternar(b)} aria-label={`Selecionar boleto ${b.num_documento || b.id}`} />
-                        )}
+                        <input type="checkbox" checked={selecionados.has(b.id)} onChange={() => alternar(b)}
+                          aria-label={`Selecionar boleto ${b.num_documento || b.id}`} />
                       </td>
                       <td>
                         <div className="linha-nome">
@@ -438,18 +468,26 @@ export default function BoletosPage() {
 
       {selecionados.size > 0 && (
         <div className="barra-lote">
-          <strong>{selecionados.size} boleto(s) selecionado(s)</strong>
+          <strong>{selecionados.size} selecionado(s)</strong>
           <span style={{ opacity: .75 }}>
             {fmtBRL([...selecionados.values()].reduce((s, b) => s + Number(b.valor), 0))}
           </span>
+          {temDeletadosNaSelecao && (
+            <button onClick={restaurarSelecionados}>Restaurar</button>
+          )}
           <div className="acoes" style={{ marginLeft: 'auto' }}>
             <a className="botao" href={`/api/boletos/pdf-lote?ids=${[...selecionados.keys()].join(',')}`}>
               <IconBaixar /> Baixar PDFs
             </a>
-            <button className="principal-btn" onClick={() => setPagando([...selecionados.values()])}>
-              Marcar como pagos
+            {podePagarSelecao && (
+              <button className="principal-btn" onClick={() => setPagando(paraPagar)}>
+                Marcar como pagos
+              </button>
+            )}
+            <button className="perigo" onClick={deletarSelecionados}>
+              <IconLixeira /> Deletar
             </button>
-            <button onClick={() => setSelecionados(new Map())}>Limpar seleção</button>
+            <button onClick={() => setSelecionados(new Map())}>Limpar</button>
           </div>
         </div>
       )}

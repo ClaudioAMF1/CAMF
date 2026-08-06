@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiGet, apiSend, qs } from '../api'
 import PdfViewer from '../components/PdfViewer'
 import { fmtBRL, fmtCpfCnpj, fmtData } from '../format'
-import { IconBaixar, IconOlho } from '../icons'
+import { IconBaixar, IconLixeira, IconOlho } from '../icons'
 import { LinhasEsqueleto, Modal, useToast, Vazio } from '../ui'
 
 const hojeISO = () => new Date().toISOString().slice(0, 10)
@@ -13,7 +13,8 @@ function limitesDoMes(deslocamento = 0) {
   const inicio = new Date(hoje.getFullYear(), hoje.getMonth() + deslocamento, 1)
   const fim = new Date(hoje.getFullYear(), hoje.getMonth() + deslocamento + 1, 0)
   const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  return { de: iso(inicio), ate: iso(fim), rotulo: inicio.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }) }
+  const rotulo = inicio.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+  return { de: iso(inicio), ate: iso(fim), rotulo: rotulo.charAt(0).toUpperCase() + rotulo.slice(1) }
 }
 
 const PRESETS = [
@@ -108,6 +109,18 @@ export default function VencimentosPage() {
     return [...mapa.entries()].sort((a, b) => a[0].localeCompare(b[0]))
   }, [boletos])
 
+  const deletarSelecionados = () => {
+    const ids = [...selecionados.keys()]
+    if (!confirm(`Deletar ${ids.length} boleto(s)? Podem ser restaurados depois.`)) return
+    apiSend('POST', '/boletos/deletar-lote', { ids })
+      .then((r) => {
+        queryClient.invalidateQueries()
+        setSelecionados(new Map())
+        notificar(`${r.afetados} boleto(s) deletados`)
+      })
+      .catch((e) => notificar(e.message || 'Erro', 'erro'))
+  }
+
   const alternar = (b) =>
     setSelecionados((m) => {
       const novo = new Map(m)
@@ -156,7 +169,7 @@ export default function VencimentosPage() {
           <input type="checkbox" checked={incluirVencidos} onChange={(e) => setIncluirVencidos(e.target.checked)} />
           Incluir atrasados
         </label>
-        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--tinta-3)', textTransform: 'capitalize' }}>
+        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--tinta-3)' }}>
           {periodo.rotulo}
         </div>
       </div>
@@ -247,6 +260,7 @@ export default function VencimentosPage() {
           <div className="acoes" style={{ marginLeft: 'auto' }}>
             <a className="botao" href={urlLote(idsSelecionados)}><IconBaixar /> Baixar PDFs</a>
             <button className="principal-btn" onClick={() => setPagandoLote(true)}>Marcar como pagos</button>
+            <button className="perigo" onClick={deletarSelecionados}><IconLixeira /> Deletar</button>
             <button onClick={() => setSelecionados(new Map())}>Limpar</button>
           </div>
         </div>

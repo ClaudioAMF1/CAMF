@@ -546,3 +546,35 @@ def test_xlsx_tem_aba_de_pagadores(client):
 
     # o documento também aparece no Resumo
     assert "CPF/CNPJ" in [c.value for c in wb["Resumo"][1]]
+
+
+# ---------- Exclusão em lote ----------
+
+def test_deletar_e_restaurar_em_lote(client):
+    enviar(client, {"a.pdf": [_pagina(1), _pagina(2), _pagina(3)]})
+    ids = [b["id"] for b in client.get("/api/boletos").json()["items"]]
+
+    resp = client.post("/api/boletos/deletar-lote", json={"ids": ids})
+    assert resp.json()["afetados"] == 3
+    assert client.get("/api/boletos").json()["total"] == 0
+    assert client.get("/api/boletos?incluir_deletados=true").json()["total"] == 3
+
+    # repetir não é erro: já deletados são ignorados
+    repetido = client.post("/api/boletos/deletar-lote", json={"ids": ids})
+    assert repetido.json()["afetados"] == 0
+    assert sorted(repetido.json()["ignorados"]) == sorted(ids)
+
+    voltou = client.post("/api/boletos/restaurar-lote", json={"ids": ids})
+    assert voltou.json()["afetados"] == 3
+    assert client.get("/api/boletos").json()["total"] == 3
+
+
+def test_deletar_lote_registra_auditoria(client):
+    enviar(client, {"a.pdf": [_pagina(1)]})
+    boleto_id = client.get("/api/boletos").json()["items"][0]["id"]
+    client.post("/api/boletos/deletar-lote", json={"ids": [boleto_id]},
+                headers={"X-Autor": "joana"})
+
+    trilha = client.get(f"/api/boletos/{boleto_id}/auditoria").json()
+    registro = next(r for r in trilha if r["acao"] == "deletar")
+    assert registro["autor"] == "joana"

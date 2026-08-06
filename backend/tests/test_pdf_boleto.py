@@ -60,7 +60,8 @@ def test_pdf_do_boleto_devolve_so_a_pagina_dele(client, upload_real):
     assert resp.status_code == 200
     assert resp.headers["content-type"] == "application/pdf"
     assert "inline" in resp.headers["content-disposition"]
-    assert segundo["num_documento"] in resp.headers["content-disposition"]
+    # o arquivo é nomeado pela pessoa + vencimento do boleto
+    assert "JOAO DA SILVA - 11-08-2026.pdf" in resp.headers["content-disposition"]
 
     # é um PDF válido, de uma página só
     leitor = PdfReader(io.BytesIO(resp.content))
@@ -146,3 +147,36 @@ def test_pdf_em_lote_sem_arquivo_guardado_orienta(client, upload_real, monkeypat
     resp = client.get(f"/api/boletos/pdf-lote?ids={boleto_id}")
     assert resp.status_code == 404
     assert "Reprocessar e atualizar" in resp.json()["detail"]
+
+
+def test_nome_do_arquivo_usa_pessoa_e_vencimento(client, upload_real):
+    boletos = client.get("/api/boletos?sort=vencimento").json()["items"]
+    primeiro = boletos[0]
+
+    resp = client.get(f"/api/boletos/{primeiro['id']}/pdf")
+    disposicao = resp.headers["content-disposition"]
+    assert "JOAO DA SILVA - 10-08-2026.pdf" in disposicao
+
+
+def test_nome_com_acento_vai_em_utf8(client, monkeypatch, tmp_path):
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "armazenamento_dir", str(tmp_path / "pdfs"))
+    textos = [texto_boleto("JOSÉ DA CONCEIÇÃO", CPF_A, Decimal("30.00"),
+                           date(2026, 11, 5), sequencia=7)]
+    monkeypatch.setattr(extracao, "extrair_textos_paginas", lambda _b: textos)
+    client.post("/api/uploads", files=[("arquivos", ("a.pdf", pdf_real(1), "application/pdf"))])
+
+    boleto_id = client.get("/api/boletos").json()["items"][0]["id"]
+    disposicao = client.get(f"/api/boletos/{boleto_id}/pdf").headers["content-disposition"]
+    assert "filename*=UTF-8''" in disposicao
+    assert "JOS" in disposicao  # fallback ASCII sem acento
+    assert "05-11-2026" in disposicao
+
+
+def test_nome_do_lote_de_um_pagador(client, upload_real):
+    boletos = client.get("/api/boletos?sort=vencimento").json()["items"]
+    ids = ",".join(str(b["id"]) for b in boletos[:2])
+    disposicao = client.get(f"/api/boletos/pdf-lote?ids={ids}").headers["content-disposition"]
+    assert "JOAO DA SILVA" in disposicao
+    assert "10-08-2026 a 11-08-2026" in disposicao

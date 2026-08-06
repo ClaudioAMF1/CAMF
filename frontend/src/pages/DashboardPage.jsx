@@ -210,7 +210,7 @@ export default function DashboardPage() {
               <Vazio titulo="Nada a vencer" descricao={`Nenhum boleto em aberto nos próximos ${dias} dias.`} />
             ) : (
               <>
-                <div style={{ maxHeight: 214, overflowY: 'auto', marginTop: 12, borderTop: '1px solid var(--linha)' }}>
+                <div style={{ maxHeight: 232, overflowY: 'auto', marginTop: 12, borderTop: '1px solid var(--linha)', borderBottom: '1px solid var(--linha)' }}>
                   <table>
                     <thead><tr><th>Pagador</th><th>Vencimento</th><th className="num">Valor</th></tr></thead>
                     <tbody>

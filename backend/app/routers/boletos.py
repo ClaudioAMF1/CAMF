@@ -1,6 +1,8 @@
 import math
+import unicodedata
 from datetime import date, datetime
 from decimal import Decimal
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import case, func, select
@@ -24,6 +26,30 @@ COLUNAS_ORDENACAO = {
     "criado_em": Boleto.criado_em,
     "pagador": Pagador.nome,
 }
+
+
+def _cabecalho_arquivo(nome: str, inline: bool) -> dict[str, str]:
+    """Content-Disposition com suporte a acentos (RFC 5987) e fallback ASCII."""
+    disposicao = "inline" if inline else "attachment"
+    ascii_seguro = unicodedata.normalize("NFKD", nome).encode("ascii", "ignore").decode()
+    ascii_seguro = ascii_seguro or "boleto.pdf"
+    return {
+        "Content-Disposition": (
+            f'{disposicao}; filename="{ascii_seguro}"; '
+            f"filename*=UTF-8''{quote(nome)}"
+        )
+    }
+
+
+def nome_do_boleto(boleto: Boleto, pagador_nome: str | None = None) -> str:
+    """"NOME DA PESSOA - 20-10-2026.pdf" — como o usuário arquiva os boletos."""
+    nome = pagador_nome or (boleto.pagador.nome if boleto.pagador else None) or "Boleto"
+    partes = [documentos.nome_arquivo_seguro(nome)]
+    if boleto.vencimento:
+        partes.append(f"{boleto.vencimento:%d-%m-%Y}")
+    elif boleto.num_documento:
+        partes.append(documentos.nome_arquivo_seguro(boleto.num_documento, 20))
+    return " - ".join(partes) + ".pdf"
 
 
 def _para_out(boleto: Boleto) -> schemas.BoletoOut:
@@ -159,16 +185,17 @@ def pdf_em_lote(
     stmt = (
         select(Boleto, Upload.hash_sha256)
         .join(Upload, Boleto.upload_id == Upload.id)
+        .options(joinedload(Boleto.pagador))
         .where(Boleto.id.in_(lista_ids))
         .order_by(Boleto.vencimento, Boleto.id)
         .execution_options(incluir_deletados=True)
     )
-    itens = [(hash_, boleto.pagina) for boleto, hash_ in db.execute(stmt)]
-    if not itens:
+    linhas = list(db.execute(stmt))
+    if not linhas:
         raise HTTPException(status_code=404, detail="Boletos não encontrados")
 
     try:
-        conteudo = armazenamento.juntar_paginas(itens)
+        conteudo = armazenamento.juntar_paginas([(h, b.pagina) for b, h in linhas])
     except armazenamento.ArquivoIndisponivel:
         raise HTTPException(
             status_code=404,
@@ -178,11 +205,31 @@ def pdf_em_lote(
             ),
         )
 
-    nome = f"boletos_{datetime.now():%Y%m%d_%H%M}.pdf"
+    boletos = [b for b, _ in linhas]
+    if len(boletos) == 1:
+        nome = nome_do_boleto(boletos[0])
+    else:
+        # Um pagador só: usa o nome dele; vários: nomeia pelo período
+        nomes = {b.pagador.nome for b in boletos if b.pagador}
+        vencimentos = sorted(b.vencimento for b in boletos if b.vencimento)
+        periodo = ""
+        if vencimentos:
+            periodo = (
+                f" - {vencimentos[0]:%d-%m-%Y}"
+                if vencimentos[0] == vencimentos[-1]
+                else f" - {vencimentos[0]:%d-%m-%Y} a {vencimentos[-1]:%d-%m-%Y}"
+            )
+        base = (
+            documentos.nome_arquivo_seguro(nomes.pop())
+            if len(nomes) == 1
+            else f"{len(boletos)} boletos"
+        )
+        nome = f"{base}{periodo}.pdf"
+
     return Response(
         content=conteudo,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{nome}"'},
+        headers=_cabecalho_arquivo(nome, inline=False),
     )
 
 
@@ -221,6 +268,70 @@ def pagar_lote(
     return schemas.ResultadoLote(pagos=pagos, ignorados=sorted(ignorados))
 
 
+@router.post("/deletar-lote", response_model=schemas.ResultadoAcaoLote)
+def deletar_lote(
+    corpo: schemas.IdsIn,
+    db: Session = Depends(get_db),
+    autor: str = Depends(get_autor),
+):
+    """Soft delete de vários boletos. Já deletados são ignorados, não viram erro."""
+    if not corpo.ids:
+        raise HTTPException(status_code=400, detail="Nenhum boleto informado")
+
+    stmt = (
+        select(Boleto)
+        .where(Boleto.id.in_(corpo.ids))
+        .execution_options(incluir_deletados=True)
+    )
+    boletos = db.execute(stmt).scalars().all()
+    encontrados = {b.id for b in boletos}
+    ignorados = [i for i in corpo.ids if i not in encontrados]
+    afetados = 0
+
+    for boleto in boletos:
+        if boleto.deletado_em is not None:
+            ignorados.append(boleto.id)
+            continue
+        boleto.soft_delete()
+        audit.registrar(db, "boleto", boleto.id, "deletar", origem="manual", autor=autor)
+        afetados += 1
+
+    db.commit()
+    return schemas.ResultadoAcaoLote(afetados=afetados, ignorados=sorted(ignorados))
+
+
+@router.post("/restaurar-lote", response_model=schemas.ResultadoAcaoLote)
+def restaurar_lote(
+    corpo: schemas.IdsIn,
+    db: Session = Depends(get_db),
+    autor: str = Depends(get_autor),
+):
+    """Desfaz a exclusão de vários boletos de uma vez."""
+    if not corpo.ids:
+        raise HTTPException(status_code=400, detail="Nenhum boleto informado")
+
+    stmt = (
+        select(Boleto)
+        .where(Boleto.id.in_(corpo.ids))
+        .execution_options(incluir_deletados=True)
+    )
+    boletos = db.execute(stmt).scalars().all()
+    encontrados = {b.id for b in boletos}
+    ignorados = [i for i in corpo.ids if i not in encontrados]
+    afetados = 0
+
+    for boleto in boletos:
+        if boleto.deletado_em is None:
+            ignorados.append(boleto.id)
+            continue
+        boleto.restaurar()
+        audit.registrar(db, "boleto", boleto.id, "restaurar", origem="manual", autor=autor)
+        afetados += 1
+
+    db.commit()
+    return schemas.ResultadoAcaoLote(afetados=afetados, ignorados=sorted(ignorados))
+
+
 @router.get("/{boleto_id}", response_model=schemas.BoletoOut)
 def detalhar(boleto_id: int, db: Session = Depends(get_db)):
     return _para_out(_obter(db, boleto_id, incluir_deletados=True))
@@ -248,8 +359,7 @@ def pdf_do_boleto(
             nome = upload.nome_arquivo
         else:
             conteudo = armazenamento.extrair_pagina(upload.hash_sha256, boleto.pagina)
-            base = (boleto.num_documento or str(boleto.id)).replace("/", "-")
-            nome = f"boleto_{base}.pdf"
+            nome = nome_do_boleto(boleto)
     except armazenamento.ArquivoIndisponivel:
         raise HTTPException(
             status_code=404,
@@ -264,10 +374,7 @@ def pdf_do_boleto(
     return Response(
         content=conteudo,
         media_type="application/pdf",
-        headers={
-            "Content-Disposition": f'inline; filename="{nome}"',
-            "Cache-Control": "private, max-age=300",
-        },
+        headers={**_cabecalho_arquivo(nome, inline=True), "Cache-Control": "private, max-age=300"},
     )
 
 

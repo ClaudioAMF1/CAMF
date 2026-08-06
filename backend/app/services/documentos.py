@@ -57,6 +57,13 @@ def formatar_cpf_cnpj(digitos: str | None) -> str | None:
     return digitos
 
 
+def nome_arquivo_seguro(texto: str, limite: int = 80) -> str:
+    """Limpa um texto para virar nome de arquivo (sem barras, aspas, controle)."""
+    limpo = re.sub(r'[\\/:*?"<>|\x00-\x1f]', "", texto or "").strip(" .")
+    limpo = re.sub(r"\s+", " ", limpo)
+    return limpo[:limite] or "boleto"
+
+
 def normalizar_nome(nome: str) -> str:
     """Uppercase, sem acentos, espaços colapsados."""
     sem_acento = unicodedata.normalize("NFKD", nome or "").encode("ascii", "ignore").decode()
