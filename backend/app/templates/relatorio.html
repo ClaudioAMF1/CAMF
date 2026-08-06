@@ -3,72 +3,185 @@
 <head>
 <meta charset="utf-8">
 <style>
+  /* Paisagem: são 9 colunas de dados; em retrato os nomes quebram em 3 linhas */
   @page {
-    size: A4;
-    margin: 2cm 1.5cm;
-    @bottom-right { content: "Página " counter(page) " de " counter(pages); font-size: 8pt; color: #666; }
-    @bottom-left { content: "{{ empresa }}"; font-size: 8pt; color: #666; }
+    size: A4 landscape;
+    margin: 13mm 12mm 14mm;
+    @bottom-left  { content: "{{ empresa }} · CNPJ {{ cnpj }}"; font-size: 7.5pt; color: #8a8578; }
+    @bottom-right { content: "Página " counter(page) " de " counter(pages); font-size: 7.5pt; color: #8a8578; }
   }
-  body { font-family: Helvetica, Arial, sans-serif; font-size: 9pt; color: #222; }
-  header { border-bottom: 3px solid #1F4E78; padding-bottom: 8px; margin-bottom: 16px; }
-  h1 { font-size: 15pt; color: #1F4E78; margin: 0 0 2px; }
-  .meta { font-size: 8.5pt; color: #555; }
-  .cards { display: flex; gap: 8px; margin: 14px 0; }
-  .card { flex: 1; border: 1px solid #d5dde5; border-radius: 6px; padding: 8px 10px; }
-  .card .rotulo { font-size: 7.5pt; text-transform: uppercase; color: #667; letter-spacing: .04em; }
-  .card .valor { font-size: 11pt; font-weight: bold; margin-top: 2px; }
-  h2 { font-size: 11pt; color: #1F4E78; margin: 18px 0 6px; }
+  @page :first { margin-top: 11mm; }
+
+  * { box-sizing: border-box; }
+  body {
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 8pt; line-height: 1.35; color: #1c1a17; margin: 0;
+  }
+
+  /* ---------- Cabeçalho ---------- */
+  header { border-bottom: 2.5pt solid #1c1a17; padding-bottom: 7pt; margin-bottom: 12pt; }
+  .titulo-linha { display: flex; align-items: baseline; justify-content: space-between; gap: 14pt; }
+  h1 { font-size: 15pt; margin: 0; font-weight: 700; letter-spacing: -.3pt; white-space: nowrap; }
+  h1 small { font-weight: 400; color: #6b6558; font-size: 10pt; }
+  .meta { font-size: 7.5pt; color: #6b6558; text-align: right; line-height: 1.5; white-space: nowrap; }
+  .meta b { color: #1c1a17; }
+
+  /* ---------- Indicadores ---------- */
+  .indicadores {
+    display: table; width: 100%; table-layout: fixed;
+    border: .75pt solid #d5cfc3; border-radius: 2pt; margin-bottom: 14pt;
+  }
+  .ind { display: table-cell; padding: 7pt 9pt; border-right: .75pt solid #e4dfd5; }
+  .ind:last-child { border-right: none; }
+  .ind .r { font-size: 6.5pt; text-transform: uppercase; letter-spacing: .8pt; color: #8a8578; font-weight: 700; }
+  .ind .v { font-size: 13pt; font-weight: 700; margin-top: 3pt; letter-spacing: -.4pt; white-space: nowrap; }
+  .ind .a { font-size: 6.5pt; color: #8a8578; margin-top: 1pt; }
+  .v.azul { color: #1c5cab; } .v.verde { color: #056b05; }
+  .v.vermelho { color: #b8342f; } .v.ambar { color: #96590a; }
+
+  /* ---------- Seções ---------- */
+  h2 {
+    font-size: 8pt; text-transform: uppercase; letter-spacing: 1.1pt; font-weight: 700;
+    color: #6b6558; margin: 15pt 0 5pt; padding-bottom: 3pt; border-bottom: .75pt solid #d5cfc3;
+  }
+  h2:first-of-type { margin-top: 0; }
+  .quebra { break-before: page; }
+
+  /* ---------- Tabelas ---------- */
   table { width: 100%; border-collapse: collapse; }
-  th { background: #1F4E78; color: #fff; padding: 4px 6px; font-size: 8pt; text-align: left; }
-  td { padding: 3px 6px; border-bottom: 1px solid #e3e8ee; }
-  tr:nth-child(even) td { background: #f5f8fb; }
-  .num { text-align: right; }
-  .total-geral td { background: #1F4E78 !important; color: #fff; font-weight: bold; font-size: 10pt; }
-  .revisao td { background: #fff6d6 !important; }
+  thead { display: table-header-group; }      /* cabeçalho repete a cada página */
+  tr { break-inside: avoid; }                  /* nunca corta uma linha ao meio */
+  th {
+    background: #1c1a17; color: #fff; font-size: 6.5pt; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .6pt;
+    padding: 5pt 6pt; text-align: left; white-space: nowrap;
+  }
+  td { padding: 4.5pt 6pt; border-bottom: .5pt solid #e4dfd5; vertical-align: top; }
+  tbody tr:nth-child(even) td { background: #f7f5f1; }
+  .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .nome { font-weight: 600; }
+  .doc, .data { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .cinza { color: #8a8578; }
+
+  tr.total td {
+    background: #1c1a17 !important; color: #fff; font-weight: 700; font-size: 8.5pt;
+    border-bottom: none; padding: 6pt;
+  }
+  tr.subtotal td {
+    background: #ece8e0 !important; font-weight: 700;
+    border-top: .75pt solid #b8b1a3; border-bottom: .75pt solid #b8b1a3;
+  }
+  tr.revisao td { background: #fdf2dd !important; }
+  .grupo-pagador td {
+    background: #f0ece4 !important; font-weight: 700; font-size: 8.5pt;
+    border-top: 1pt solid #1c1a17; padding: 5pt 6pt;
+  }
+
+  .etiqueta {
+    display: inline-block; padding: .5pt 4pt; border-radius: 1.5pt;
+    font-size: 6.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .3pt;
+    white-space: nowrap;
+  }
+  .e-aberto { background: #e6effb; color: #1c5cab; }
+  .e-pago { background: #e2f0e2; color: #056b05; }
+  .e-cancelado { background: #ece8e0; color: #4a463f; }
+  .e-vencido { background: #fbe9e8; color: #b8342f; }
+  .e-revisao { background: #fdf2dd; color: #96590a; }
+  .divergencia { font-size: 6.5pt; color: #96590a; }
+
+  /* Barra de composição por pagador */
+  /* font-size 0 evita que o espaço entre os <i> empurre o último segmento */
+  .mix { width: 46pt; height: 4pt; background: #e4dfd5; display: block; overflow: hidden; font-size: 0; }
+  .mix i { display: inline-block; height: 4pt; vertical-align: top; }
+  .m-pago { background: #056b05; } .m-venc { background: #b8342f; } .m-ab { background: #2a78d6; }
+
+  .vazio { padding: 20pt; text-align: center; color: #8a8578; font-style: italic; }
 </style>
 </head>
 <body>
+
 <header>
-  <h1>{{ empresa }} — Contas a Receber</h1>
-  <div class="meta">
-    CNPJ {{ cnpj }} &nbsp;·&nbsp; Gerado em {{ gerado_em.strftime('%d/%m/%Y %H:%M') }}
-    &nbsp;·&nbsp; Período: {{ periodo }}
+  <div class="titulo-linha">
+    <h1>{{ empresa }} <small>— Contas a Receber</small></h1>
+    <div class="meta">
+      Período: <b>{{ periodo }}</b><br>
+      Gerado em {{ gerado_em.strftime('%d/%m/%Y às %H:%M') }}
+    </div>
   </div>
 </header>
 
-<div class="cards">
-  <div class="card"><div class="rotulo">Total geral</div><div class="valor">{{ resumo.total_geral | brl }}</div></div>
-  <div class="card"><div class="rotulo">Em aberto</div><div class="valor">{{ resumo.total_aberto | brl }}</div></div>
-  <div class="card"><div class="rotulo">Pago</div><div class="valor">{{ resumo.total_pago | brl }}</div></div>
-  <div class="card"><div class="rotulo">Vencido</div><div class="valor">{{ resumo.total_vencido | brl }}</div></div>
-  <div class="card"><div class="rotulo">Boletos</div><div class="valor">{{ resumo.qtd_boletos }}</div></div>
+<div class="indicadores">
+  <div class="ind">
+    <div class="r">Total geral</div>
+    <div class="v">{{ resumo.total_geral | brl }}</div>
+    <div class="a">{{ resumo.qtd_boletos }} boletos · {{ resumo.qtd_pagadores }} pagadores</div>
+  </div>
+  <div class="ind">
+    <div class="r">Em aberto</div>
+    <div class="v azul">{{ resumo.total_aberto | brl }}</div>
+  </div>
+  <div class="ind">
+    <div class="r">Recebido</div>
+    <div class="v verde">{{ resumo.total_pago | brl }}</div>
+  </div>
+  <div class="ind">
+    <div class="r">Vencido</div>
+    <div class="v vermelho">{{ resumo.total_vencido | brl }}</div>
+  </div>
+  <div class="ind">
+    <div class="r">Valor médio</div>
+    <div class="v">{{ resumo.valor_medio | brl }}</div>
+  </div>
+  <div class="ind">
+    <div class="r">Revisão manual</div>
+    <div class="v {% if resumo.qtd_revisao_manual %}ambar{% endif %}">{{ resumo.qtd_revisao_manual }}</div>
+    <div class="a">boletos a conferir</div>
+  </div>
 </div>
 
 <h2>Resumo por pagador</h2>
+{% if pagadores %}
 <table>
   <thead>
     <tr>
-      <th>Pagador</th><th>CPF/CNPJ</th><th>Município</th>
-      <th class="num">Qtd</th><th class="num">Total</th>
-      <th class="num">Em aberto</th><th class="num">Pago</th><th class="num">Vencido</th>
+      <th style="width: 20%">Pagador</th>
+      <th style="width: 11%">CPF/CNPJ</th>
+      <th style="width: 13%">Município</th>
+      <th class="num" style="width: 5%">Qtd</th>
+      <th style="width: 7%">Composição</th>
+      <th class="num" style="width: 11%">Total</th>
+      <th class="num" style="width: 11%">Em aberto</th>
+      <th class="num" style="width: 11%">Recebido</th>
+      <th class="num" style="width: 11%">Vencido</th>
     </tr>
   </thead>
   <tbody>
     {% for p in pagadores %}
     <tr>
-      <td>{{ p.nome }}</td>
-      <td>{{ p.cpf_cnpj }}</td>
-      <td>{{ p.municipio }}{% if p.uf %} - {{ p.uf }}{% endif %}</td>
+      <td class="nome">{{ p.nome or '—' }}</td>
+      <td class="doc">{{ p.cpf_cnpj or '—' }}</td>
+      <td>{{ p.municipio }}{% if p.uf %} – {{ p.uf }}{% endif %}</td>
       <td class="num">{{ p.qtd }}</td>
+      <td>
+        {% set t = p.total | float %}
+        <span class="mix">
+          {%- if t > 0 -%}
+          <i class="m-pago" style="width: {{ (p.total_pago | float / t * 46) | round(1) }}pt"></i>
+          <i class="m-venc" style="width: {{ (p.total_vencido | float / t * 46) | round(1) }}pt"></i>
+          <i class="m-ab" style="width: {{ ((p.total_aberto | float - p.total_vencido | float) / t * 46) | round(1) }}pt"></i>
+          {%- endif -%}
+        </span>
+      </td>
       <td class="num">{{ p.total | brl }}</td>
       <td class="num">{{ p.total_aberto | brl }}</td>
-      <td class="num">{{ p.total_pago | brl }}</td>
-      <td class="num">{{ p.total_vencido | brl }}</td>
+      <td class="num {% if p.total_pago | float %}verde{% endif %}">{{ p.total_pago | brl }}</td>
+      <td class="num">{% if p.total_vencido | float %}<span style="color:#b8342f">{{ p.total_vencido | brl }}</span>{% else %}<span class="cinza">—</span>{% endif %}</td>
     </tr>
     {% endfor %}
-    <tr class="total-geral">
+    <tr class="total">
       <td colspan="3">TOTAL GERAL</td>
       <td class="num">{{ resumo.qtd_boletos }}</td>
+      <td></td>
       <td class="num">{{ resumo.total_geral | brl }}</td>
       <td class="num">{{ resumo.total_aberto | brl }}</td>
       <td class="num">{{ resumo.total_pago | brl }}</td>
@@ -76,20 +189,31 @@
     </tr>
   </tbody>
 </table>
+{% else %}
+<div class="vazio">Nenhum boleto no período filtrado.</div>
+{% endif %}
 
+{% if resumo.por_pagador %}
 <h2>Por pagador × valor unitário</h2>
 <table>
-  <thead><tr><th>Pagador</th><th class="num">Qtd</th><th class="num">Valor unitário</th><th class="num">Subtotal</th></tr></thead>
+  <thead>
+    <tr>
+      <th style="width: 52%">Pagador</th>
+      <th class="num" style="width: 8%">Qtd</th>
+      <th class="num" style="width: 20%">Valor unitário</th>
+      <th class="num" style="width: 20%">Subtotal</th>
+    </tr>
+  </thead>
   <tbody>
     {% for item in resumo.por_pagador %}
     <tr>
-      <td>{{ item.nome }}</td>
+      <td class="nome">{{ item.nome or '—' }}</td>
       <td class="num">{{ item.qtd }}</td>
       <td class="num">{{ item.valor_unitario | brl }}</td>
       <td class="num">{{ item.subtotal | brl }}</td>
     </tr>
     {% endfor %}
-    <tr class="total-geral">
+    <tr class="total">
       <td>TOTAL GERAL</td>
       <td class="num">{{ resumo.qtd_boletos }}</td>
       <td></td>
@@ -97,29 +221,70 @@
     </tr>
   </tbody>
 </table>
+{% endif %}
 
-<h2>Detalhado</h2>
+{% if detalhado_por_pagador %}
+<h2 class="quebra">Boletos detalhados</h2>
 <table>
   <thead>
     <tr>
-      <th>Pagador</th><th>CPF/CNPJ</th><th>Nº Doc.</th><th>Emissão</th><th>Vencimento</th>
-      <th class="num">Valor</th><th>Situação</th><th>Divergências</th>
+      <th style="width: 9%">Nº doc.</th>
+      <th style="width: 9%">Nosso nº</th>
+      <th class="data" style="width: 10%">Emissão</th>
+      <th class="data" style="width: 10%">Vencimento</th>
+      <th class="num" style="width: 12%">Valor</th>
+      <th style="width: 11%">Situação</th>
+      <th class="data" style="width: 10%">Pagamento</th>
+      <th class="num" style="width: 12%">Valor pago</th>
+      <th style="width: 17%">Observações</th>
     </tr>
   </thead>
   <tbody>
-    {% for b in detalhado %}
+    {% for grupo in detalhado_por_pagador %}
+    <tr class="grupo-pagador">
+      <td colspan="4">{{ grupo.nome or '—' }}{% if grupo.cpf_cnpj %} · {{ grupo.cpf_cnpj }}{% endif %}</td>
+      <td class="num">{{ grupo.total | brl }}</td>
+      <td colspan="4">{{ grupo.qtd }} boleto(s)</td>
+    </tr>
+    {% for b in grupo.boletos %}
     <tr {% if b.qualidade == 'revisao_manual' %}class="revisao"{% endif %}>
-      <td>{{ b.pagador_nome }}</td>
-      <td>{{ b.pagador_cpf_cnpj or '' }}</td>
-      <td>{{ b.num_documento or '' }}</td>
-      <td>{{ b.data_emissao | data_br }}</td>
-      <td>{{ b.vencimento | data_br }}</td>
+      <td class="doc">{{ b.num_documento or '—' }}</td>
+      <td class="doc">{{ b.nosso_numero or '—' }}</td>
+      <td class="data">{{ b.data_emissao | data_br }}</td>
+      <td class="data">{{ b.vencimento | data_br }}</td>
       <td class="num">{{ b.valor | brl }}</td>
-      <td>{{ b.situacao }}{% if b.vencido %} (vencido){% endif %}</td>
-      <td>{{ b.divergencias }}</td>
+      <td>
+        <span class="etiqueta e-{{ b.situacao }}">{{ b.situacao }}</span>
+        {% if b.vencido %}<span class="etiqueta e-vencido">vencido</span>{% endif %}
+      </td>
+      <td class="data">{{ b.data_pagamento | data_br }}</td>
+      <td class="num">{% if b.valor_pago %}{{ b.valor_pago | brl }}{% else %}<span class="cinza">—</span>{% endif %}</td>
+      <td>
+        {% if b.qualidade == 'revisao_manual' %}
+          <span class="etiqueta e-revisao">revisão</span>
+          <span class="divergencia">{{ b.divergencias }}</span>
+        {% endif %}
+      </td>
     </tr>
     {% endfor %}
+    <tr class="subtotal">
+      <td colspan="4">Subtotal — {{ grupo.nome or '—' }}</td>
+      <td class="num">{{ grupo.total | brl }}</td>
+      <td colspan="2"></td>
+      <td class="num">{{ grupo.total_pago | brl }}</td>
+      <td></td>
+    </tr>
+    {% endfor %}
+    <tr class="total">
+      <td colspan="4">TOTAL GERAL — {{ resumo.qtd_boletos }} boletos</td>
+      <td class="num">{{ resumo.total_geral | brl }}</td>
+      <td colspan="2"></td>
+      <td class="num">{{ resumo.total_pago | brl }}</td>
+      <td></td>
+    </tr>
   </tbody>
 </table>
+{% endif %}
+
 </body>
 </html>

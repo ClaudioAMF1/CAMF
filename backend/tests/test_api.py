@@ -605,3 +605,26 @@ def test_agrupamento_com_deletados_permite_restaurar(client):
     resp = client.post("/api/boletos/restaurar-lote", json={"ids": grupo["ids"]})
     assert resp.json()["afetados"] == 2
     assert client.get("/api/boletos").json()["total"] == 2
+
+
+def test_pdf_do_relatorio_sai_em_paisagem_e_sem_linha_cortada(client):
+    """Regressão do relatório: A4 paisagem e linhas que não quebram entre páginas."""
+    import io as _io
+
+    from pypdf import PdfReader
+
+    enviar(client, {"a.pdf": [_pagina(i, valor=Decimal(f"{1000 + i}.00")) for i in range(1, 9)]})
+    resp = client.get("/api/relatorios/pdf")
+    assert resp.status_code == 200
+
+    leitor = PdfReader(_io.BytesIO(resp.content))
+    caixa = leitor.pages[0].mediabox
+    assert float(caixa.width) > float(caixa.height)  # paisagem
+
+    texto = "\n".join(p.extract_text() or "" for p in leitor.pages)
+    assert "JOAO DA SILVA" in texto
+    assert "529.982.247-25" in texto          # documento do pagador
+    assert "TOTAL GERAL" in texto
+    assert "Subtotal" in texto                # detalhado agrupado por pessoa
+    # "R$" nunca separado do número por quebra de linha
+    assert "R$\n" not in texto

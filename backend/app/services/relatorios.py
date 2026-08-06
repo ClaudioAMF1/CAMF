@@ -29,6 +29,24 @@ def formatar_data(valor) -> str:
     return f"{valor:%d/%m/%Y}" if valor else ""
 
 
+def detalhar_por_pagador(df: pd.DataFrame) -> list[dict]:
+    """Boletos agrupados por pessoa, com subtotal — lê melhor que lista corrida."""
+    if df.empty:
+        return []
+    grupos = []
+    for (nome, cpf), bloco in df.groupby(["pagador_nome", "pagador_cpf_cnpj"], dropna=False):
+        ordenado = bloco.sort_values(["vencimento", "num_documento"], na_position="last")
+        grupos.append({
+            "nome": nome,
+            "cpf_cnpj": cpf or "",
+            "qtd": int(len(bloco)),
+            "total": Decimal(str(bloco["valor"].sum())),
+            "total_pago": Decimal(str(bloco.loc[bloco["situacao"] == "pago", "valor"].sum())),
+            "boletos": ordenado.to_dict("records"),
+        })
+    return sorted(grupos, key=lambda g: (g["nome"] or "").upper())
+
+
 def gerar_pdf(df: pd.DataFrame, resumo: dict, periodo: str) -> bytes:
     from weasyprint import HTML
 
@@ -37,7 +55,6 @@ def gerar_pdf(df: pd.DataFrame, resumo: dict, periodo: str) -> bytes:
     env.filters["data_br"] = formatar_data
     template = env.get_template("relatorio.html")
 
-    detalhado = df.sort_values(["pagador_nome", "vencimento"]).to_dict("records") if not df.empty else []
     html = template.render(
         empresa=settings.empresa_nome,
         cnpj=settings.empresa_cnpj,
@@ -45,7 +62,7 @@ def gerar_pdf(df: pd.DataFrame, resumo: dict, periodo: str) -> bytes:
         periodo=periodo,
         resumo=resumo,
         pagadores=resumo_por_pagador(df),
-        detalhado=detalhado,
+        detalhado_por_pagador=detalhar_por_pagador(df),
     )
     return HTML(string=html).write_pdf()
 

@@ -26,6 +26,34 @@ docker compose up --build
 
 As migrations Alembic rodam automaticamente na subida do serviço `api`.
 
+## Onde hospedar (e por que não na Vercel)
+
+O **frontend** roda na Vercel sem problema — é um build estático do Vite.
+O **backend não roda**, e não é questão de configuração:
+
+| Impedimento | Detalhe |
+|---|---|
+| **WeasyPrint** | precisa de bibliotecas de sistema (Pango, Cairo, GDK-PixBuf) que não existem no runtime serverless; sem elas não há relatório em PDF |
+| **PDFs guardados** | o disco das funções é efêmero e somente-leitura fora de `/tmp`, então os boletos originais sumiriam a cada invocação (adeus "Ver PDF") |
+| **Tamanho da função** | pandas + pdfplumber + pypdf + WeasyPrint estouram o limite de 250 MB descompactados |
+| **Upload** | o corpo de uma requisição serverless é limitado (~4,5 MB), e carteiras com muitas páginas passam disso |
+| **Tempo de execução** | processar dezenas de páginas costuma ultrapassar o limite de execução dos planos menores |
+
+O projeto já está em Docker, então o caminho natural é uma plataforma que
+rode contêineres — **Railway**, **Render**, **Fly.io** ou uma VPS:
+
+```bash
+docker compose up --build -d      # api + db + web
+```
+
+Nessas plataformas é preciso apontar `DATABASE_URL` para um Postgres
+gerenciado e montar um volume persistente em `ARMAZENAMENTO_DIR` (padrão
+`/dados/pdfs` no compose) para os PDFs originais.
+
+Um arranjo híbrido também funciona: **frontend na Vercel** + **backend em
+Railway/Render**, bastando apontar `VITE_API_URL` para a URL da API e
+liberar o CORS.
+
 ## Desenvolvimento local (sem Docker)
 
 ```bash
@@ -248,10 +276,20 @@ Todas as exportações respeitam os filtros ativos na tela.
 **CSV** em duas variantes: `?aba=boletos` (padrão, uma linha por boleto, com o
 documento do pagador) e `?aba=pagadores` (cadastro e totais por pessoa).
 
-**PDF** (WeasyPrint): cabeçalho com "CAMF Construtora LTDA — Contas a Receber",
-CNPJ, data de geração e período; cards de resumo; tabela por pagador com
-documento e totais por situação; tabela por pagador × valor unitário; tabela
-detalhada com CPF/CNPJ; total geral destacado e rodapé paginado.
+**PDF** (WeasyPrint), em **A4 paisagem** — com 9 colunas de dados, o retrato
+espremia nomes em três linhas e separava o "R$" do número:
+
+- faixa de indicadores (total, aberto, recebido, vencido, médio, revisão);
+- **resumo por pagador**: documento, município, quantidade, barra de
+  composição (recebido / vencido / a vencer) e totais por situação;
+- **por pagador × valor unitário**, com subtotais;
+- **boletos detalhados agrupados por pessoa**, com subtotal de cada uma —
+  em vez de uma lista corrida de centenas de linhas;
+- cabeçalho de tabela repetido a cada página (`display: table-header-group`)
+  e `break-inside: avoid` nas linhas, para que nenhuma seja cortada ao meio
+  (era o que gerava células vazias no meio da tabela);
+- valores e datas com `white-space: nowrap`, numerais tabulares, rodapé
+  paginado com CNPJ.
 
 ## Baixa de pagamento: manual, em lote — não automática
 
