@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -40,11 +40,17 @@ def relatorio_xlsx(filtros: FiltrosBoleto = Depends(), db: Session = Depends(get
 
 
 @router.get("/csv")
-def relatorio_csv(filtros: FiltrosBoleto = Depends(), db: Session = Depends(get_db)):
+def relatorio_csv(
+    filtros: FiltrosBoleto = Depends(),
+    aba: str = Query(default="boletos", pattern="^(boletos|pagadores)$"),
+    db: Session = Depends(get_db),
+):
+    """CSV dos boletos (padrão) ou dos pagadores com dados cadastrais."""
     df = svc_dashboard.carregar_dataframe(db, filtros)
-    conteudo = svc.gerar_csv(df)
+    conteudo = svc.gerar_csv_pagadores(df) if aba == "pagadores" else svc.gerar_csv(df)
+    nome = _nome("csv") if aba == "boletos" else f"pagadores_{datetime.now():%Y%m%d_%H%M}.csv"
     return Response(
         content=conteudo,
         media_type="text/csv; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename="{_nome("csv")}"'},
+        headers={"Content-Disposition": f'attachment; filename="{nome}"'},
     )

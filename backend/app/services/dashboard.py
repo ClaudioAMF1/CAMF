@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from ..deps import FiltrosBoleto
 from ..models import Boleto, Pagador
+from . import documentos
 
 
 def carregar_dataframe(db: Session, filtros: FiltrosBoleto) -> pd.DataFrame:
@@ -23,7 +24,14 @@ def carregar_dataframe(db: Session, filtros: FiltrosBoleto) -> pd.DataFrame:
             "id": b.id,
             "pagador_id": b.pagador_id,
             "pagador_nome": b.pagador.nome if b.pagador else "",
-            "pagador_cpf_cnpj": b.pagador.cpf_cnpj if b.pagador else None,
+            "pagador_cpf_cnpj": documentos.formatar_cpf_cnpj(
+                b.pagador.cpf_cnpj if b.pagador else None
+            ),
+            "pagador_endereco": b.pagador.endereco if b.pagador else None,
+            "pagador_bairro": b.pagador.bairro if b.pagador else None,
+            "pagador_municipio": b.pagador.municipio if b.pagador else None,
+            "pagador_uf": b.pagador.uf if b.pagador else None,
+            "pagador_cep": b.pagador.cep if b.pagador else None,
             "linha_digitavel": b.linha_digitavel,
             "nosso_numero": b.nosso_numero,
             "num_documento": b.num_documento,
@@ -107,21 +115,37 @@ def montar_dashboard(df: pd.DataFrame) -> dict:
     }
 
 
-def alertas_vencimento(db: Session, dias: int) -> list[Boleto]:
+def alertas_vencimento(
+    db: Session,
+    dias: int = 30,
+    de: date | None = None,
+    ate: date | None = None,
+    incluir_vencidos: bool = False,
+) -> list[Boleto]:
+    """Boletos em aberto de um período.
+
+    Sem `de`/`ate`, usa os próximos `dias`. Com eles, respeita o intervalo —
+    é assim que a UI mostra "todos deste mês".
+    """
     from datetime import timedelta
 
     from ..models import Situacao
 
     hoje = date.today()
+    inicio = de if de is not None else hoje
+    fim = ate if ate is not None else hoje + timedelta(days=dias)
+    if incluir_vencidos:
+        inicio = None  # sem piso: traz também o que já passou
+
+    condicoes = [Boleto.situacao == Situacao.aberto, Boleto.vencimento <= fim]
+    if inicio is not None:
+        condicoes.append(Boleto.vencimento >= inicio)
+
     stmt = (
         select(Boleto)
         .join(Pagador, Boleto.pagador_id == Pagador.id)
         .options(joinedload(Boleto.pagador))
-        .where(
-            Boleto.situacao == Situacao.aberto,
-            Boleto.vencimento >= hoje,
-            Boleto.vencimento <= hoje + timedelta(days=dias),
-        )
-        .order_by(Boleto.vencimento)
+        .where(*condicoes)
+        .order_by(Boleto.vencimento, Pagador.nome)
     )
     return db.execute(stmt).scalars().all()

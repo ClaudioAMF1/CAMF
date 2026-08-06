@@ -1,16 +1,20 @@
 import { NavLink, Route, Routes } from 'react-router-dom'
 import { FiltrosProvider } from './filtros'
-import { IconBoletos, IconDashboard, IconHistorico, IconPagadores, IconUpload } from './icons'
+import {
+  IconBoletos, IconDashboard, IconHistorico, IconPagadores, IconUpload, IconVencimentos,
+} from './icons'
 import BoletosPage from './pages/BoletosPage'
 import DashboardPage from './pages/DashboardPage'
 import PagadoresPage from './pages/PagadoresPage'
 import UploadPage from './pages/UploadPage'
 import UploadsPage from './pages/UploadsPage'
+import VencimentosPage from './pages/VencimentosPage'
 import { BotaoTema } from './ui'
 
 const secoes = [
   ['Visão geral', [
     ['/', 'Dashboard', IconDashboard],
+    ['/vencimentos', 'Vencimentos', IconVencimentos],
     ['/boletos', 'Boletos', IconBoletos],
     ['/pagadores', 'Pagadores', IconPagadores],
   ]],
@@ -59,6 +63,7 @@ export default function App() {
         <main className="conteudo">
           <Routes>
             <Route path="/" element={<DashboardPage />} />
+            <Route path="/vencimentos" element={<VencimentosPage />} />
             <Route path="/boletos" element={<BoletosPage />} />
             <Route path="/pagadores" element={<PagadoresPage />} />
             <Route path="/upload" element={<UploadPage />} />

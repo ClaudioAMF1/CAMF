@@ -7,7 +7,7 @@ import FiltrosBar from '../components/FiltrosBar'
 import PdfViewer from '../components/PdfViewer'
 import { useFiltros } from '../filtros'
 import { fmtBRL, fmtCpfCnpj, fmtData, ROTULOS_DIVERGENCIA, ROTULOS_SITUACAO } from '../format'
-import { IconSeta } from '../icons'
+import { IconBaixar, IconOlho, IconSeta } from '../icons'
 import { LinhasEsqueleto, Modal, useToast, Vazio } from '../ui'
 
 const hojeISO = () => new Date().toISOString().slice(0, 10)
@@ -276,8 +276,12 @@ export default function BoletosPage() {
     <div className="acoes" onClick={(e) => e.stopPropagation()}>
       <button className="mini" title="Ver o boleto original em PDF"
         onClick={() => setVendoPdf({ ...b, pagador_nome: b.pagador_nome || nomePagador })}>
-        Ver PDF
+        <IconOlho /> PDF
       </button>
+      <a className="botao mini" href={`/api/boletos/${b.id}/pdf`} download
+         title="Baixar o boleto" onClick={(e) => e.stopPropagation()}>
+        <IconBaixar />
+      </a>
       {!b.deletado_em && b.situacao === 'aberto' && (
         <button className="principal-btn mini" onClick={() => setPagando(b)}>Pagar</button>
       )}
@@ -439,6 +443,9 @@ export default function BoletosPage() {
             {fmtBRL([...selecionados.values()].reduce((s, b) => s + Number(b.valor), 0))}
           </span>
           <div className="acoes" style={{ marginLeft: 'auto' }}>
+            <a className="botao" href={`/api/boletos/pdf-lote?ids=${[...selecionados.keys()].join(',')}`}>
+              <IconBaixar /> Baixar PDFs
+            </a>
             <button className="principal-btn" onClick={() => setPagando([...selecionados.values()])}>
               Marcar como pagos
             </button>

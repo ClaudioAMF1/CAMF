@@ -125,3 +125,24 @@ def test_reprocessar_atualiza_a_pagina(client, upload_real, monkeypatch, tmp_pat
     atualizado = client.get(f"/api/boletos/{alvo['id']}").json()
     assert atualizado["pagina"] == 2
     assert len(PdfReader(io.BytesIO(client.get(f"/api/boletos/{alvo['id']}/pdf").content)).pages) == 1
+
+
+def test_pdf_em_lote_junta_os_boletos(client, upload_real):
+    boletos = client.get("/api/boletos?sort=vencimento").json()["items"]
+    ids = ",".join(str(b["id"]) for b in boletos[:2])
+
+    resp = client.get(f"/api/boletos/pdf-lote?ids={ids}")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"] == "application/pdf"
+    assert "attachment" in resp.headers["content-disposition"]
+    assert len(PdfReader(io.BytesIO(resp.content)).pages) == 2
+
+
+def test_pdf_em_lote_sem_arquivo_guardado_orienta(client, upload_real, monkeypatch, tmp_path):
+    from app.config import settings
+
+    boleto_id = client.get("/api/boletos").json()["items"][0]["id"]
+    monkeypatch.setattr(settings, "armazenamento_dir", str(tmp_path / "sumiu"))
+    resp = client.get(f"/api/boletos/pdf-lote?ids={boleto_id}")
+    assert resp.status_code == 404
+    assert "Reprocessar e atualizar" in resp.json()["detail"]

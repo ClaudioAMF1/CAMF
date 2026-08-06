@@ -44,6 +44,7 @@ def gerar_pdf(df: pd.DataFrame, resumo: dict, periodo: str) -> bytes:
         gerado_em=datetime.now(),
         periodo=periodo,
         resumo=resumo,
+        pagadores=resumo_por_pagador(df),
         detalhado=detalhado,
     )
     return HTML(string=html).write_pdf()
@@ -52,7 +53,9 @@ def gerar_pdf(df: pd.DataFrame, resumo: dict, periodo: str) -> bytes:
 COLUNAS_DETALHADO = [
     ("ID", "id", 8),
     ("Pagador", "pagador_nome", 38),
-    ("CPF/CNPJ", "pagador_cpf_cnpj", 18),
+    ("CPF/CNPJ", "pagador_cpf_cnpj", 20),
+    ("Município", "pagador_municipio", 20),
+    ("UF", "pagador_uf", 6),
     ("Nº Documento", "num_documento", 14),
     ("Nosso Número", "nosso_numero", 14),
     ("Emissão", "data_emissao", 12),
@@ -68,6 +71,50 @@ COLUNAS_DETALHADO = [
     ("Observação", "observacao", 30),
 ]
 
+COLUNAS_PAGADORES = [
+    ("Pagador", "nome", 38),
+    ("CPF/CNPJ", "cpf_cnpj", 20),
+    ("Endereço", "endereco", 34),
+    ("Bairro", "bairro", 24),
+    ("Município", "municipio", 20),
+    ("UF", "uf", 6),
+    ("CEP", "cep", 12),
+    ("Qtd. boletos", "qtd", 13),
+    ("Total", "total", 15),
+    ("Em aberto", "total_aberto", 15),
+    ("Pago", "total_pago", 15),
+    ("Vencido", "total_vencido", 15),
+]
+
+
+def resumo_por_pagador(df: pd.DataFrame) -> list[dict]:
+    """Uma linha por pessoa, com os dados cadastrais e os totais dela."""
+    if df.empty:
+        return []
+    linhas = []
+    for (nome, cpf), grupo in df.groupby(["pagador_nome", "pagador_cpf_cnpj"], dropna=False):
+        primeiro = grupo.iloc[0]
+        linhas.append({
+            "nome": nome,
+            "cpf_cnpj": cpf or "",
+            "endereco": primeiro.get("pagador_endereco") or "",
+            "bairro": primeiro.get("pagador_bairro") or "",
+            "municipio": primeiro.get("pagador_municipio") or "",
+            "uf": primeiro.get("pagador_uf") or "",
+            "cep": formatar_cep(primeiro.get("pagador_cep")),
+            "qtd": int(len(grupo)),
+            "total": Decimal(str(grupo["valor"].sum())),
+            "total_aberto": Decimal(str(grupo.loc[grupo["situacao"] == "aberto", "valor"].sum())),
+            "total_pago": Decimal(str(grupo.loc[grupo["situacao"] == "pago", "valor"].sum())),
+            "total_vencido": Decimal(str(grupo.loc[grupo["vencido"], "valor"].sum())),
+        })
+    return sorted(linhas, key=lambda x: x["nome"])
+
+
+def formatar_cep(cep) -> str:
+    digitos = "".join(ch for ch in str(cep or "") if ch.isdigit())
+    return f"{digitos[:5]}-{digitos[5:]}" if len(digitos) == 8 else ""
+
 
 def gerar_xlsx(df: pd.DataFrame, resumo: dict) -> bytes:
     wb = Workbook()
@@ -75,25 +122,54 @@ def gerar_xlsx(df: pd.DataFrame, resumo: dict) -> bytes:
     cabecalho_fill = PatternFill("solid", fgColor="1F4E78")
     cabecalho_font = Font(bold=True, color="FFFFFF")
 
-    # --- Aba Resumo: pagador × valor unitário ---
+    # --- Aba Resumo: pagador × valor unitário (com o documento de cada um) ---
+    docs = {}
+    if not df.empty:
+        docs = (
+            df.dropna(subset=["pagador_nome"])
+            .groupby("pagador_nome")["pagador_cpf_cnpj"]
+            .first()
+            .to_dict()
+        )
+
     ws = wb.active
     ws.title = "Resumo"
-    ws.append(["Pagador", "Qtd", "Valor Unitário", "Subtotal"])
-    for col in range(1, 5):
+    ws.append(["Pagador", "CPF/CNPJ", "Qtd", "Valor Unitário", "Subtotal"])
+    for col in range(1, 6):
         celula = ws.cell(row=1, column=col)
         celula.fill = cabecalho_fill
         celula.font = cabecalho_font
     for item in resumo["por_pagador"]:
-        ws.append([item["nome"], item["qtd"], item["valor_unitario"], item["subtotal"]])
-        ws.cell(row=ws.max_row, column=3).number_format = FORMATO_BRL
+        ws.append([
+            item["nome"], docs.get(item["nome"]) or "",
+            item["qtd"], item["valor_unitario"], item["subtotal"],
+        ])
         ws.cell(row=ws.max_row, column=4).number_format = FORMATO_BRL
-    ws.append(["TOTAL GERAL", resumo["qtd_boletos"], None, resumo["total_geral"]])
-    for col in range(1, 5):
+        ws.cell(row=ws.max_row, column=5).number_format = FORMATO_BRL
+    ws.append(["TOTAL GERAL", None, resumo["qtd_boletos"], None, resumo["total_geral"]])
+    for col in range(1, 6):
         ws.cell(row=ws.max_row, column=col).font = negrito
-    ws.cell(row=ws.max_row, column=4).number_format = FORMATO_BRL
-    for col, largura in zip(range(1, 5), (40, 8, 16, 16)):
+    ws.cell(row=ws.max_row, column=5).number_format = FORMATO_BRL
+    for col, largura in zip(range(1, 6), (40, 20, 8, 16, 16)):
         ws.column_dimensions[get_column_letter(col)].width = largura
     ws.freeze_panes = "A2"
+
+    # --- Aba Pagadores: cadastro + totais por pessoa ---
+    ws_pag = wb.create_sheet("Pagadores")
+    ws_pag.append([titulo for titulo, _, _ in COLUNAS_PAGADORES])
+    for col in range(1, len(COLUNAS_PAGADORES) + 1):
+        celula = ws_pag.cell(row=1, column=col)
+        celula.fill = cabecalho_fill
+        celula.font = cabecalho_font
+        celula.alignment = Alignment(horizontal="center")
+    for pessoa in resumo_por_pagador(df):
+        ws_pag.append([pessoa[chave] for _, chave, _ in COLUNAS_PAGADORES])
+        for idx, (_, chave, _) in enumerate(COLUNAS_PAGADORES, start=1):
+            if chave.startswith("total"):
+                ws_pag.cell(row=ws_pag.max_row, column=idx).number_format = FORMATO_BRL
+    for idx, (_, _, largura) in enumerate(COLUNAS_PAGADORES, start=1):
+        ws_pag.column_dimensions[get_column_letter(idx)].width = largura
+    ws_pag.freeze_panes = "A2"
 
     # --- Aba Detalhado ---
     ws2 = wb.create_sheet("Detalhado")
@@ -126,6 +202,22 @@ def gerar_xlsx(df: pd.DataFrame, resumo: dict) -> bytes:
     buffer = io.BytesIO()
     wb.save(buffer)
     return buffer.getvalue()
+
+
+def gerar_csv_pagadores(df: pd.DataFrame) -> bytes:
+    """CSV com uma linha por pessoa (cadastro + totais)."""
+    buffer = io.StringIO()
+    escritor = csv.writer(buffer, delimiter=";")
+    escritor.writerow([titulo for titulo, _, _ in COLUNAS_PAGADORES])
+    for pessoa in resumo_por_pagador(df):
+        linha = []
+        for _, chave, _ in COLUNAS_PAGADORES:
+            valor = pessoa[chave]
+            if chave.startswith("total"):
+                valor = f"{valor:.2f}".replace(".", ",")
+            linha.append(valor)
+        escritor.writerow(linha)
+    return buffer.getvalue().encode("utf-8-sig")
 
 
 def gerar_csv(df: pd.DataFrame) -> bytes:

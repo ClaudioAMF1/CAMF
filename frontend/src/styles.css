@@ -177,7 +177,9 @@ h3 { font-size: 14px; font-weight: 620; color: var(--tinta); margin: 26px 0 10px
 .cartoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(184px, 1fr)); gap: 13px; margin-bottom: 20px; }
 .cartao {
   position: relative; overflow: hidden; min-width: 0;
-  background: var(--superficie); border: 1px solid var(--linha);
+  /* leve profundidade no fundo, sem lavar o texto */
+  background: linear-gradient(150deg, var(--superficie-2) 0%, var(--superficie) 45%);
+  border: 1px solid var(--linha);
   border-radius: var(--r-lg); padding: 15px 15px 15px 16px; box-shadow: var(--sombra-1);
   transition: var(--transicao);
 }
@@ -417,6 +419,38 @@ input::placeholder { color: var(--tinta-fraca); }
 }
 .trilha .quando { font-size: 11px; color: var(--tinta-3); }
 .trilha code { background: var(--superficie-3); padding: 1px 6px; border-radius: 4px; font-size: 11.5px; }
+
+/* ---------------- Menu flutuante ---------------- */
+.menu-flutuante {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 31; min-width: 262px;
+  background: var(--superficie); border: 1px solid var(--linha); border-radius: var(--r-md);
+  box-shadow: var(--sombra-2); padding: 5px; overflow: hidden;
+  animation: entrar-menu 140ms cubic-bezier(.32, .72, 0, 1);
+}
+@keyframes entrar-menu { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: none; } }
+.menu-flutuante a {
+  display: block; padding: 9px 12px; border-radius: var(--r-sm);
+  text-decoration: none; color: var(--tinta); transition: background var(--transicao);
+}
+.menu-flutuante a:hover { background: var(--superficie-3); }
+.menu-flutuante .rotulo { display: block; font-size: 13.5px; font-weight: 560; }
+.menu-flutuante .descricao { display: block; font-size: 11.5px; color: var(--tinta-3); margin-top: 1px; }
+
+/* ---------------- Blocos por dia (Vencimentos) ---------------- */
+.bloco-dia { border-bottom: 1px solid var(--linha); }
+.bloco-dia:last-child { border-bottom: none; }
+.bloco-dia-topo {
+  display: flex; align-items: center; gap: 11px; flex-wrap: wrap;
+  padding: 11px 16px; background: var(--superficie-2);
+  border-bottom: 1px solid var(--linha); position: sticky; top: 0; z-index: 1;
+}
+.bloco-dia-topo strong { font-size: 13.5px; letter-spacing: -.01em; }
+.bloco-dia table td { padding: 10px 14px; }
+.bloco-dia:last-child table tr:last-child td { border-bottom: none; }
+
+/* Ícones dentro de botões pequenos */
+button svg, .botao svg { width: 15px; height: 15px; flex-shrink: 0; }
+button.mini svg, .botao.mini svg { width: 13.5px; height: 13.5px; }
 
 /* ---------------- Visualizador de PDF ---------------- */
 .visor {

@@ -482,3 +482,67 @@ def test_relatorio_csv_e_xlsx(client):
     xlsx_resp = client.get("/api/relatorios/xlsx")
     assert xlsx_resp.status_code == 200
     assert xlsx_resp.content[:2] == b"PK"  # zip/xlsx
+
+
+# ---------- Vencimentos e exportações com dados do pagador ----------
+
+def test_alertas_aceita_intervalo_do_mes(client):
+    dentro = texto_boleto("JOAO DA SILVA", CPF_A, Decimal("10.00"), date(2026, 8, 20), sequencia=1)
+    fora = texto_boleto("JOAO DA SILVA", CPF_A, Decimal("20.00"), date(2026, 9, 20), sequencia=2)
+    enviar(client, {"a.pdf": [dentro, fora]})
+
+    # todos os vencimentos de agosto/2026
+    alertas = client.get("/api/dashboard/alertas?de=2026-08-01&ate=2026-08-31").json()
+    assert len(alertas) == 1
+    assert alertas[0]["valor"] == "10.00"
+    assert alertas[0]["pagador_cpf_cnpj"] == "529.982.247-25"
+
+
+def test_alertas_pode_incluir_vencidos(client):
+    vencido = texto_boleto("JOAO DA SILVA", CPF_A, Decimal("15.00"), date(2020, 3, 10), sequencia=1)
+    futuro = texto_boleto("JOAO DA SILVA", CPF_A, Decimal("25.00"), date(2030, 3, 10), sequencia=2)
+    enviar(client, {"a.pdf": [vencido, futuro]})
+
+    sem = client.get("/api/dashboard/alertas?dias=365").json()
+    assert all(not b["vencido"] for b in sem)
+
+    com = client.get("/api/dashboard/alertas?ate=2030-12-31&incluir_vencidos=true").json()
+    assert any(b["vencido"] for b in com)
+
+
+def test_csv_de_pagadores_traz_cadastro_e_totais(client):
+    enviar(client, {"a.pdf": [
+        _pagina(1, nome="JOAO DA SILVA", cpf=CPF_A, valor=Decimal("100.00")),
+        _pagina(2, nome="JOAO DA SILVA", cpf=CPF_A, valor=Decimal("50.00")),
+    ]})
+    texto = client.get("/api/relatorios/csv?aba=pagadores").text
+    assert "CPF/CNPJ" in texto and "Qtd. boletos" in texto
+    assert "529.982.247-25" in texto  # documento formatado
+    assert "JOAO DA SILVA" in texto
+    linhas = [l for l in texto.strip().splitlines() if l.strip()]
+    assert len(linhas) == 2  # cabeçalho + uma pessoa
+    assert "150,00" in linhas[1]  # total somado
+
+
+def test_csv_de_boletos_traz_o_documento_do_pagador(client):
+    enviar(client, {"a.pdf": [_pagina(1)]})
+    texto = client.get("/api/relatorios/csv").text
+    assert "529.982.247-25" in texto
+
+
+def test_xlsx_tem_aba_de_pagadores(client):
+    import io as _io
+    from openpyxl import load_workbook
+
+    enviar(client, {"a.pdf": [_pagina(1)]})
+    resp = client.get("/api/relatorios/xlsx")
+    wb = load_workbook(_io.BytesIO(resp.content))
+    assert wb.sheetnames == ["Resumo", "Pagadores", "Detalhado"]
+
+    aba = wb["Pagadores"]
+    cabecalhos = [c.value for c in aba[1]]
+    assert "CPF/CNPJ" in cabecalhos and "Município" in cabecalhos
+    assert aba.cell(row=2, column=2).value == "529.982.247-25"
+
+    # o documento também aparece no Resumo
+    assert "CPF/CNPJ" in [c.value for c in wb["Resumo"][1]]

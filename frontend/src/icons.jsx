@@ -37,6 +37,15 @@ export const IconCheck = () => (
 export const IconVazio = () => (
   <svg {...base}><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5v-9Z" /><path d="m3 7.5 9 4.5 9-4.5M12 12v9" /></svg>
 )
+export const IconOlho = () => (
+  <svg {...base}><path d="M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" /><circle cx="12" cy="12" r="2.8" /></svg>
+)
+export const IconBaixar = () => (
+  <svg {...base}><path d="M12 4v10M7.5 9.5 12 14l4.5-4.5" /><path d="M4 16.5V18a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1.5" /></svg>
+)
+export const IconVencimentos = () => (
+  <svg {...base}><rect x="3" y="4.5" width="18" height="16" rx="2" /><path d="M3 9.5h18M8 2.5v4M16 2.5v4" /><path d="M12 13v3.5" /><circle cx="12" cy="12.4" r=".1" /></svg>
+)
 export const IconBusca = () => (
   <svg {...base}><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4.5 4.5" /></svg>
 )

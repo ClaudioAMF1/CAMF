@@ -197,6 +197,21 @@ GET    /api/dashboard/alertas?dias=30
 GET    /api/relatorios/pdf | xlsx | csv   respeitando os filtros
 ```
 
+## Tela de Vencimentos
+
+Lista os boletos em aberto agrupados **por dia de vencimento**, com presets de
+período (**Este mês**, Próximo mês, 7/15/30/60 dias) e a opção de incluir os
+atrasados. Cada linha mostra o pagador com CPF/CNPJ e permite **ver o PDF** ou
+**baixá-lo de novo**; dá para baixar todos os boletos de um dia, do período
+inteiro ou só os selecionados num **PDF único** (`GET /api/boletos/pdf-lote`),
+e dar baixa em lote.
+
+```
+GET /api/dashboard/alertas?de=2026-08-01&ate=2026-08-31   intervalo (ex.: o mês)
+GET /api/dashboard/alertas?dias=30&incluir_vencidos=true  próximos N dias
+GET /api/boletos/pdf-lote?ids=1,2,3                       um PDF com os boletos
+```
+
 ## Visualizar o boleto original
 
 O PDF enviado é guardado (por hash SHA-256, então reenviar o mesmo arquivo não
@@ -217,6 +232,26 @@ o volume `pdfs` montado em `/dados/pdfs`, que persiste entre recriações do
 container). Boletos importados **antes** deste recurso não têm o arquivo
 guardado: a API responde 404 explicando que basta reenviar o PDF com
 "Reprocessar e atualizar" para passar a visualizá-lo.
+
+## Relatórios e exportações
+
+Todas as exportações respeitam os filtros ativos na tela.
+
+**XLSX** (openpyxl), três abas — moeda BRL, cabeçalho congelado, larguras ajustadas:
+
+| Aba | Conteúdo |
+|---|---|
+| **Resumo** | pagador, **CPF/CNPJ**, qtd, valor unitário, subtotal + total geral |
+| **Pagadores** | uma linha por pessoa: nome, **CPF/CNPJ**, endereço, bairro, município, UF, CEP, qtd. de boletos, total, em aberto, pago e vencido |
+| **Detalhado** | todos os campos do boleto + **CPF/CNPJ**, município/UF, situação, qualidade e divergências |
+
+**CSV** em duas variantes: `?aba=boletos` (padrão, uma linha por boleto, com o
+documento do pagador) e `?aba=pagadores` (cadastro e totais por pessoa).
+
+**PDF** (WeasyPrint): cabeçalho com "CAMF Construtora LTDA — Contas a Receber",
+CNPJ, data de geração e período; cards de resumo; tabela por pagador com
+documento e totais por situação; tabela por pagador × valor unitário; tabela
+detalhada com CPF/CNPJ; total geral destacado e rodapé paginado.
 
 ## Baixa de pagamento: manual, em lote — não automática
 

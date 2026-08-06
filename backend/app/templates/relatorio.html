@@ -44,7 +44,40 @@
   <div class="card"><div class="rotulo">Boletos</div><div class="valor">{{ resumo.qtd_boletos }}</div></div>
 </div>
 
-<h2>Resumo por pagador × valor unitário</h2>
+<h2>Resumo por pagador</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Pagador</th><th>CPF/CNPJ</th><th>Município</th>
+      <th class="num">Qtd</th><th class="num">Total</th>
+      <th class="num">Em aberto</th><th class="num">Pago</th><th class="num">Vencido</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in pagadores %}
+    <tr>
+      <td>{{ p.nome }}</td>
+      <td>{{ p.cpf_cnpj }}</td>
+      <td>{{ p.municipio }}{% if p.uf %} - {{ p.uf }}{% endif %}</td>
+      <td class="num">{{ p.qtd }}</td>
+      <td class="num">{{ p.total | brl }}</td>
+      <td class="num">{{ p.total_aberto | brl }}</td>
+      <td class="num">{{ p.total_pago | brl }}</td>
+      <td class="num">{{ p.total_vencido | brl }}</td>
+    </tr>
+    {% endfor %}
+    <tr class="total-geral">
+      <td colspan="3">TOTAL GERAL</td>
+      <td class="num">{{ resumo.qtd_boletos }}</td>
+      <td class="num">{{ resumo.total_geral | brl }}</td>
+      <td class="num">{{ resumo.total_aberto | brl }}</td>
+      <td class="num">{{ resumo.total_pago | brl }}</td>
+      <td class="num">{{ resumo.total_vencido | brl }}</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Por pagador × valor unitário</h2>
 <table>
   <thead><tr><th>Pagador</th><th class="num">Qtd</th><th class="num">Valor unitário</th><th class="num">Subtotal</th></tr></thead>
   <tbody>
@@ -69,7 +102,7 @@
 <table>
   <thead>
     <tr>
-      <th>Pagador</th><th>Nº Doc.</th><th>Emissão</th><th>Vencimento</th>
+      <th>Pagador</th><th>CPF/CNPJ</th><th>Nº Doc.</th><th>Emissão</th><th>Vencimento</th>
       <th class="num">Valor</th><th>Situação</th><th>Divergências</th>
     </tr>
   </thead>
@@ -77,6 +110,7 @@
     {% for b in detalhado %}
     <tr {% if b.qualidade == 'revisao_manual' %}class="revisao"{% endif %}>
       <td>{{ b.pagador_nome }}</td>
+      <td>{{ b.pagador_cpf_cnpj or '' }}</td>
       <td>{{ b.num_documento or '' }}</td>
       <td>{{ b.data_emissao | data_br }}</td>
       <td>{{ b.vencimento | data_br }}</td>

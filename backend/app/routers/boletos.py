@@ -1,5 +1,5 @@
 import math
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
@@ -10,7 +10,7 @@ from .. import audit, schemas
 from ..database import get_db
 from ..deps import FiltrosBoleto, get_autor
 from ..models import Auditoria, Boleto, Pagador, Qualidade, Situacao, Upload
-from ..services import armazenamento, linha_digitavel
+from ..services import armazenamento, documentos, linha_digitavel
 
 router = APIRouter(prefix="/api/boletos", tags=["boletos"])
 
@@ -30,6 +30,7 @@ def _para_out(boleto: Boleto) -> schemas.BoletoOut:
     out = schemas.BoletoOut.model_validate(boleto)
     if boleto.pagador is not None:
         out.pagador_nome = boleto.pagador.nome
+        out.pagador_cpf_cnpj = documentos.formatar_cpf_cnpj(boleto.pagador.cpf_cnpj)
     return out
 
 
@@ -140,6 +141,49 @@ def agrupados_por_pagador(
             )
         )
     return grupos
+
+
+@router.get("/pdf-lote")
+def pdf_em_lote(
+    ids: str = Query(..., description="IDs separados por vírgula"),
+    db: Session = Depends(get_db),
+):
+    """Junta os boletos pedidos num PDF só — para baixar ou imprimir de uma vez."""
+    try:
+        lista_ids = [int(x) for x in ids.split(",") if x.strip()]
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Lista de IDs inválida")
+    if not lista_ids:
+        raise HTTPException(status_code=400, detail="Nenhum boleto informado")
+
+    stmt = (
+        select(Boleto, Upload.hash_sha256)
+        .join(Upload, Boleto.upload_id == Upload.id)
+        .where(Boleto.id.in_(lista_ids))
+        .order_by(Boleto.vencimento, Boleto.id)
+        .execution_options(incluir_deletados=True)
+    )
+    itens = [(hash_, boleto.pagina) for boleto, hash_ in db.execute(stmt)]
+    if not itens:
+        raise HTTPException(status_code=404, detail="Boletos não encontrados")
+
+    try:
+        conteudo = armazenamento.juntar_paginas(itens)
+    except armazenamento.ArquivoIndisponivel:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "Os PDFs originais destes boletos não estão guardados. Reenvie os "
+                "arquivos em Enviar PDFs (com 'Reprocessar e atualizar')."
+            ),
+        )
+
+    nome = f"boletos_{datetime.now():%Y%m%d_%H%M}.pdf"
+    return Response(
+        content=conteudo,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{nome}"'},
+    )
 
 
 @router.post("/pagar-lote", response_model=schemas.ResultadoLote)

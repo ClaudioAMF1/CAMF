@@ -85,6 +85,7 @@ class BoletoOut(ORMModel):
     atualizado_em: datetime
     deletado_em: datetime | None
     pagador_nome: str | None = None
+    pagador_cpf_cnpj: str | None = None
 
     @computed_field
     @property

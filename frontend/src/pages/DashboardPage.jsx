@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart,
@@ -208,28 +209,39 @@ export default function DashboardPage() {
             {!alertas?.length ? (
               <Vazio titulo="Nada a vencer" descricao={`Nenhum boleto em aberto nos próximos ${dias} dias.`} />
             ) : (
-              <div style={{ maxHeight: 246, overflowY: 'auto', marginTop: 12, borderTop: '1px solid var(--linha)' }}>
-                <table>
-                  <thead><tr><th>Pagador</th><th>Vencimento</th><th className="num">Valor</th></tr></thead>
-                  <tbody>
-                    {alertas.map((b) => {
-                      const d = diasAte(b.vencimento)
-                      return (
-                        <tr key={b.id}>
-                          <td className="principal">{b.pagador_nome}</td>
-                          <td>
-                            {fmtData(b.vencimento)}{' '}
-                            <span className={`dias ${d <= 7 ? 'urgente' : ''}`}>
-                              {d === 0 ? 'hoje' : `${d}d`}
-                            </span>
-                          </td>
-                          <td className="num">{fmtBRL(b.valor)}</td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              <>
+                <div style={{ maxHeight: 214, overflowY: 'auto', marginTop: 12, borderTop: '1px solid var(--linha)' }}>
+                  <table>
+                    <thead><tr><th>Pagador</th><th>Vencimento</th><th className="num">Valor</th></tr></thead>
+                    <tbody>
+                      {alertas.map((b) => {
+                        const d = diasAte(b.vencimento)
+                        return (
+                          <tr key={b.id}>
+                            <td>
+                              <div className="principal">{b.pagador_nome}</div>
+                              {b.pagador_cpf_cnpj && <div className="apoio">{b.pagador_cpf_cnpj}</div>}
+                            </td>
+                            <td>
+                              {fmtData(b.vencimento)}{' '}
+                              <span className={`dias ${d <= 7 ? 'urgente' : ''}`}>
+                                {d === 0 ? 'hoje' : `${d}d`}
+                              </span>
+                            </td>
+                            <td className="num">{fmtBRL(b.valor)}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <div style={{ paddingTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                  <strong style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {fmtBRL(alertas.reduce((s, b) => s + Number(b.valor), 0))}
+                  </strong>
+                  <Link className="botao" to="/vencimentos">Ver todos e baixar PDFs →</Link>
+                </div>
+              </>
             )}
           </div>
         </div>
