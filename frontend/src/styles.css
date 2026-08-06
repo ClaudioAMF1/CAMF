@@ -353,10 +353,17 @@ input::placeholder { color: var(--tinta-fraca); }
 .marcador input { min-height: 0; width: 14px; height: 14px; accent-color: var(--acento); cursor: pointer; }
 
 .barra-filtros {
-  display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
   background: var(--superficie); border: 1px solid var(--linha);
-  border-radius: var(--r-lg); padding: 14px 16px; margin-bottom: 16px;
+  border-radius: var(--r-lg); padding: 10px 12px; margin-bottom: 14px;
 }
+.par-datas { display: flex; align-items: center; gap: 6px; }
+.par-datas span { color: var(--tinta-fraca); }
+.filtros-extra {
+  flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;
+  padding-top: 10px; margin-top: 2px; border-top: 1px solid var(--linha);
+}
+button.ativo-sutil { border-color: var(--acento); color: var(--acento); }
 .acoes { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 /* ações de linha ficam numa fila só, sem quebrar */
 td .acoes { flex-wrap: nowrap; }

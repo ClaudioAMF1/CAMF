@@ -80,9 +80,7 @@ export default function PagadoresPage() {
       <div className="topo">
         <div>
           <h2>Pagadores</h2>
-          <div className="sub">
-            A identidade é o CPF/CNPJ. Pagadores provisórios (sem documento) se regularizam ao informar o CPF/CNPJ em “Editar”.
-          </div>
+          <div className="sub">Provisórios se regularizam ao informar o CPF/CNPJ em “Editar”.</div>
         </div>
         <input placeholder="Buscar por nome ou documento…" value={busca}
           onChange={(e) => setBusca(e.target.value)} style={{ minWidth: 250 }} />

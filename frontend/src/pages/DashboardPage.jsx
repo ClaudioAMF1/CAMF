@@ -102,7 +102,7 @@ export default function DashboardPage() {
       <div className="topo">
         <div>
           <h2>Dashboard</h2>
-          <div className="sub">Os filtros abaixo valem para os gráficos, as tabelas e as exportações.</div>
+          <div className="sub">Os filtros valem para gráficos, tabelas e exportações.</div>
         </div>
         <ExportButtons />
       </div>

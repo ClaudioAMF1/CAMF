@@ -578,3 +578,30 @@ def test_deletar_lote_registra_auditoria(client):
     trilha = client.get(f"/api/boletos/{boleto_id}/auditoria").json()
     registro = next(r for r in trilha if r["acao"] == "deletar")
     assert registro["autor"] == "joana"
+
+
+def test_agrupamento_traz_ids_para_selecao_em_massa(client):
+    enviar(client, {"a.pdf": [_pagina(1), _pagina(2), _pagina(3)]})
+    grupo = client.get("/api/boletos/por-pagador").json()[0]
+    ids_boletos = {b["id"] for b in client.get("/api/boletos").json()["items"]}
+    assert set(grupo["ids"]) == ids_boletos
+
+    # os ids alimentam a exclusão em lote direto do agrupamento
+    resp = client.post("/api/boletos/deletar-lote", json={"ids": grupo["ids"]})
+    assert resp.json()["afetados"] == 3
+    assert client.get("/api/boletos/por-pagador").json() == []
+
+
+def test_agrupamento_com_deletados_permite_restaurar(client):
+    enviar(client, {"a.pdf": [_pagina(1), _pagina(2)]})
+    ids = [b["id"] for b in client.get("/api/boletos").json()["items"]]
+    client.post("/api/boletos/deletar-lote", json={"ids": ids})
+
+    # sem o filtro, nada aparece; com ele, os deletados voltam a ser alcançáveis
+    assert client.get("/api/boletos/por-pagador").json() == []
+    grupo = client.get("/api/boletos/por-pagador?incluir_deletados=true").json()[0]
+    assert sorted(grupo["ids"]) == sorted(ids)
+
+    resp = client.post("/api/boletos/restaurar-lote", json={"ids": grupo["ids"]})
+    assert resp.json()["afetados"] == 2
+    assert client.get("/api/boletos").json()["total"] == 2

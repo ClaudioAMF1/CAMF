@@ -24,10 +24,7 @@ export default function UploadsPage() {
       <div className="topo">
         <div>
           <h2>Histórico de uploads</h2>
-          <div className="sub">
-            Deletar um upload arquiva os boletos dele em cascata; restaurar desfaz.
-            Reenviar o mesmo arquivo com “reprocessar” re-extrai e atualiza os boletos.
-          </div>
+          <div className="sub">Reenviar o mesmo arquivo com “reprocessar” re-extrai e atualiza os boletos.</div>
         </div>
         <label className="marcador">
           <input type="checkbox" checked={incluirDeletados} onChange={(e) => setIncluirDeletados(e.target.checked)} />

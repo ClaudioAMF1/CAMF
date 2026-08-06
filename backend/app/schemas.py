@@ -140,6 +140,8 @@ class GrupoPagador(BaseModel):
     total_vencido: Decimal
     qtd_revisao: int
     proximo_vencimento: date | None
+    # IDs dos boletos da pessoa: permite selecionar todos sem expandir a linha
+    ids: list[int] = Field(default_factory=list)
 
 
 class PagarLoteIn(BaseModel):

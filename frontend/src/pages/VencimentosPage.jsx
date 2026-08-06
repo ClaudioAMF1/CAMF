@@ -144,9 +144,7 @@ export default function VencimentosPage() {
       <div className="topo">
         <div>
           <h2>Vencimentos</h2>
-          <div className="sub">
-            Boletos em aberto do período, agrupados por dia. Dá para ver o PDF, baixar de novo e dar baixa.
-          </div>
+          <div className="sub">Boletos em aberto, agrupados por dia.</div>
         </div>
         <div className="acoes">
           {boletos.length > 0 && (

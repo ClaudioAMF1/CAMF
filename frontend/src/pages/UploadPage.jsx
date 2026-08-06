@@ -156,9 +156,7 @@ export default function UploadPage() {
       <div className="topo">
         <div>
           <h2>Enviar boletos</h2>
-          <div className="sub">
-            Cada página com linha digitável vira um boleto. Duplicados são ignorados automaticamente.
-          </div>
+          <div className="sub">Cada página com linha digitável vira um boleto.</div>
         </div>
         <label className="marcador" title="Extrai e mostra os campos reconhecidos sem gravar nada">
           <input type="checkbox" checked={diagnostico} onChange={(e) => setDiagnostico(e.target.checked)} />

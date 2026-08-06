@@ -144,6 +144,14 @@ def agrupados_por_pagador(
         .order_by(func.coalesce(func.sum(Boleto.valor), 0).desc())
     )
 
+    # IDs por pagador, na mesma janela de filtros, para a seleção em massa
+    ids_stmt = filtros.aplicar(
+        select(Boleto.pagador_id, Boleto.id).join(Pagador, Boleto.pagador_id == Pagador.id)
+    )
+    ids_por_pagador: dict[int, list[int]] = {}
+    for pagador_id, boleto_id in db.execute(ids_stmt):
+        ids_por_pagador.setdefault(pagador_id, []).append(boleto_id)
+
     grupos = []
     for linha in db.execute(stmt):
         (pid, nome, cpf, qtd, total, q_ab, t_ab, q_pg, t_pg,
@@ -164,6 +172,7 @@ def agrupados_por_pagador(
                 total_vencido=Decimal(t_vc),
                 qtd_revisao=q_rev,
                 proximo_vencimento=prox,
+                ids=ids_por_pagador.get(pid, []),
             )
         )
     return grupos
