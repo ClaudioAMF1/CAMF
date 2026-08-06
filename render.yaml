@@ -1,0 +1,31 @@
+# Blueprint do Render: provisiona a aplicação, o banco e o disco de uma vez.
+# Como usar: Render → New → Blueprint → conectar este repositório → Apply.
+services:
+  - type: web
+    name: camf-contas-a-receber
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter # necessário para disco persistente (os PDFs originais)
+    region: oregon
+    healthCheckPath: /api/health
+    autoDeploy: true
+    disk:
+      name: pdfs
+      mountPath: /dados/pdfs # ARMAZENAMENTO_DIR — boletos originais
+      sizeGB: 5
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: camf-db
+          property: connectionString
+      - key: ARMAZENAMENTO_DIR
+        value: /dados/pdfs
+      - key: FRONTEND_DIR
+        value: /app/web
+
+databases:
+  - name: camf-db
+    databaseName: camf
+    user: camf
+    plan: basic-256mb
+    region: oregon

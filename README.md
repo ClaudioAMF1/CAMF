@@ -26,7 +26,46 @@ docker compose up --build
 
 As migrations Alembic rodam automaticamente na subida do serviço `api`.
 
-## Onde hospedar (e por que não na Vercel)
+## Publicar na internet
+
+A imagem de produção (`Dockerfile` na raiz) empacota **um serviço só**: a API
+FastAPI servindo também o build do React. Sem CORS, sem proxy, sem segundo
+serviço para pagar.
+
+### Render (recomendado — sem instalar nada)
+
+O `render.yaml` na raiz é um Blueprint: descreve o serviço web, o banco
+PostgreSQL e o disco dos PDFs de uma vez.
+
+1. Suba este repositório para o GitHub;
+2. No Render: **New → Blueprint → conectar o repositório → Apply**;
+3. Aguarde o build (~5 min na primeira vez). As migrations rodam sozinhas na
+   subida, e o endereço `https://camf-contas-a-receber.onrender.com` já serve
+   a interface e a API.
+
+O Blueprint pede um plano com **disco persistente** (a partir do Starter, ~US$ 7/mês)
+porque os PDFs originais precisam sobreviver aos reinícios — sem isso, o botão
+"Ver PDF" para de funcionar depois de cada deploy. O banco é provisionado no
+plano `basic-256mb`; ajuste ambos em `render.yaml` conforme o volume de uso.
+
+### Railway ou Fly.io
+
+Também servem, com o mesmo `Dockerfile`. É preciso configurar à mão o que o
+Blueprint do Render faz sozinho:
+
+| Variável | Valor |
+|---|---|
+| `DATABASE_URL` | Postgres gerenciado da plataforma (aceita `postgres://`) |
+| `ARMAZENAMENTO_DIR` | ponto de montagem do volume persistente (ex.: `/dados/pdfs`) |
+| `PORT` | injetada pela plataforma; o contêiner já a respeita |
+
+### Frontend na Vercel + API fora
+
+Se preferir separar, o frontend estático vai para a Vercel normalmente: basta
+apontar `VITE_API_URL` para a URL da API e listar a origem em
+`ORIGENS_PERMITIDAS` no backend.
+
+## Por que o backend não roda na Vercel
 
 O **frontend** roda na Vercel sem problema — é um build estático do Vite.
 O **backend não roda**, e não é questão de configuração:
@@ -39,20 +78,8 @@ O **backend não roda**, e não é questão de configuração:
 | **Upload** | o corpo de uma requisição serverless é limitado (~4,5 MB), e carteiras com muitas páginas passam disso |
 | **Tempo de execução** | processar dezenas de páginas costuma ultrapassar o limite de execução dos planos menores |
 
-O projeto já está em Docker, então o caminho natural é uma plataforma que
-rode contêineres — **Railway**, **Render**, **Fly.io** ou uma VPS:
-
-```bash
-docker compose up --build -d      # api + db + web
-```
-
-Nessas plataformas é preciso apontar `DATABASE_URL` para um Postgres
-gerenciado e montar um volume persistente em `ARMAZENAMENTO_DIR` (padrão
-`/dados/pdfs` no compose) para os PDFs originais.
-
-Um arranjo híbrido também funciona: **frontend na Vercel** + **backend em
-Railway/Render**, bastando apontar `VITE_API_URL` para a URL da API e
-liberar o CORS.
+Por isso o deploy é em contêiner (Render, Railway, Fly.io ou uma VPS), como
+descrito acima.
 
 ## Desenvolvimento local (sem Docker)
 
