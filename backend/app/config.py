@@ -4,7 +4,10 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg2://camf:camf@db:5432/camf"
-    # Onde os PDFs originais ficam guardados (montado como volume no Docker)
+    # Onde os PDFs originais ficam guardados.
+    # "disco": volume montado (Docker/VPS). "banco": dentro do PostgreSQL —
+    # necessário em hospedagens gratuitas, que não têm disco persistente.
+    armazenamento_modo: str = "disco"
     armazenamento_dir: str = "./armazenamento"
     # Build do React servido pela própria API em produção (vazio = só a API)
     frontend_dir: str = "./web"

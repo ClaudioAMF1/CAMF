@@ -32,31 +32,48 @@ A imagem de produção (`Dockerfile` na raiz) empacota **um serviço só**: a AP
 FastAPI servindo também o build do React. Sem CORS, sem proxy, sem segundo
 serviço para pagar.
 
-### Render (recomendado — sem instalar nada)
+### Render — sem custo nenhum
 
-O `render.yaml` na raiz é um Blueprint: descreve o serviço web, o banco
-PostgreSQL e o disco dos PDFs de uma vez.
+O `render.yaml` na raiz é um Blueprint já configurado no **plano gratuito**:
+descreve o serviço web e o banco PostgreSQL de uma vez.
 
 1. Suba este repositório para o GitHub;
 2. No Render: **New → Blueprint → conectar o repositório → Apply**;
-3. Aguarde o build (~5 min na primeira vez). As migrations rodam sozinhas na
-   subida, e o endereço `https://camf-contas-a-receber.onrender.com` já serve
-   a interface e a API.
+3. Aguarde o build (~5 min na primeira vez). As migrations rodam sozinhas, e
+   o endereço `https://camf-contas-a-receber.onrender.com` já serve a
+   interface e a API.
 
-O Blueprint pede um plano com **disco persistente** (a partir do Starter, ~US$ 7/mês)
-porque os PDFs originais precisam sobreviver aos reinícios — sem isso, o botão
-"Ver PDF" para de funcionar depois de cada deploy. O banco é provisionado no
-plano `basic-256mb`; ajuste ambos em `render.yaml` conforme o volume de uso.
+**Onde ficam os PDFs sem disco persistente.** Nenhum plano gratuito oferece
+volume, e o sistema de arquivos é apagado a cada deploy. Por isso o modo
+`ARMAZENAMENTO_MODO=banco` guarda os PDFs originais dentro do próprio
+PostgreSQL — o "Ver PDF" continua funcionando. Boletos ocupam pouco: um PDF
+de 5 páginas tem ~200 KB, então o 1 GB do banco gratuito comporta milhares.
 
-### Railway ou Fly.io
+**O que o plano gratuito custa em conforto:**
 
-Também servem, com o mesmo `Dockerfile`. É preciso configurar à mão o que o
-Blueprint do Render faz sozinho:
+| Limitação | Efeito |
+|---|---|
+| O serviço hiberna após ~15 min sem uso | o primeiro acesso depois disso leva ~1 min |
+| O PostgreSQL gratuito do Render expira em 30 dias | é preciso migrar ou pagar (veja abaixo) |
+
+**Banco gratuito permanente (Neon).** Para não esbarrar nos 30 dias, crie um
+projeto no [Neon](https://neon.tech) (0,5 GB grátis, sem prazo), remova o
+bloco `databases:` do `render.yaml` e defina `DATABASE_URL` manualmente no
+painel do Render com a string do Neon — o formato `postgres://` é aceito.
+
+**Quando quiser sair do gratuito:** troque `plan: free` por `plan: starter`
+no serviço, volte `ARMAZENAMENTO_MODO` para `disco` e acrescente um bloco
+`disk:` montado em `/dados/pdfs`.
+
+### Railway, Fly.io ou VPS
+
+Servem com o mesmo `Dockerfile`. Configure à mão o que o Blueprint faz sozinho:
 
 | Variável | Valor |
 |---|---|
 | `DATABASE_URL` | Postgres gerenciado da plataforma (aceita `postgres://`) |
-| `ARMAZENAMENTO_DIR` | ponto de montagem do volume persistente (ex.: `/dados/pdfs`) |
+| `ARMAZENAMENTO_MODO` | `disco` com volume, ou `banco` sem volume |
+| `ARMAZENAMENTO_DIR` | ponto de montagem do volume, quando `modo=disco` |
 | `PORT` | injetada pela plataforma; o contêiner já a respeita |
 
 ### Frontend na Vercel + API fora

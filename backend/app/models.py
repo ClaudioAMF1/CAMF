@@ -10,6 +10,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    LargeBinary,
     Numeric,
     String,
     Text,
@@ -145,6 +146,23 @@ class Boleto(Base, TimestampMixin, SoftDeleteMixin):
             and self.vencimento is not None
             and self.vencimento < date.today()
         )
+
+
+class ArquivoPdf(Base):
+    """PDF original guardado no banco.
+
+    Alternativa ao disco para hospedagens sem volume persistente (planos
+    gratuitos), onde o sistema de arquivos é apagado a cada deploy.
+    """
+
+    __tablename__ = "arquivo_pdf"
+
+    hash_sha256: Mapped[str] = mapped_column(String(64), primary_key=True)
+    conteudo: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    tamanho: Mapped[int] = mapped_column(Integer, nullable=False)
+    criado_em: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
 
 class Auditoria(Base):

@@ -208,7 +208,7 @@ def processar_arquivo(
 
     textos = extracao.extrair_textos_paginas(conteudo)
     # Guarda o original para que cada boleto possa ser reaberto depois
-    armazenamento.guardar(hash_sha256, conteudo)
+    armazenamento.guardar(hash_sha256, conteudo, db)
 
     upload = Upload(
         nome_arquivo=nome_arquivo,

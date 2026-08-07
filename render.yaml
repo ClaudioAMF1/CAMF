@@ -1,25 +1,32 @@
-# Blueprint do Render: provisiona a aplicação, o banco e o disco de uma vez.
+# Blueprint do Render — configuração GRATUITA.
 # Como usar: Render → New → Blueprint → conectar este repositório → Apply.
+#
+# Sem disco persistente (não existe no plano free), os PDFs originais são
+# guardados no próprio PostgreSQL: ARMAZENAMENTO_MODO=banco.
+#
+# Limitações do plano gratuito, para você saber de antemão:
+#   - o serviço hiberna após ~15 min sem acesso; o primeiro acesso seguinte
+#     leva cerca de 1 minuto para responder;
+#   - o PostgreSQL gratuito do Render expira depois de 30 dias — veja no
+#     README como apontar para um banco gratuito permanente (Neon).
+# Para produção de verdade, troque `plan: free` por `plan: starter` no serviço
+# e `plan: free` por `basic-256mb` no banco.
 services:
   - type: web
     name: camf-contas-a-receber
     runtime: docker
     dockerfilePath: ./Dockerfile
-    plan: starter # necessário para disco persistente (os PDFs originais)
+    plan: free
     region: oregon
     healthCheckPath: /api/health
     autoDeploy: true
-    disk:
-      name: pdfs
-      mountPath: /dados/pdfs # ARMAZENAMENTO_DIR — boletos originais
-      sizeGB: 5
     envVars:
       - key: DATABASE_URL
         fromDatabase:
           name: camf-db
           property: connectionString
-      - key: ARMAZENAMENTO_DIR
-        value: /dados/pdfs
+      - key: ARMAZENAMENTO_MODO
+        value: banco # PDFs no PostgreSQL: o disco do plano free é apagado
       - key: FRONTEND_DIR
         value: /app/web
 
@@ -27,5 +34,5 @@ databases:
   - name: camf-db
     databaseName: camf
     user: camf
-    plan: basic-256mb
+    plan: free
     region: oregon

@@ -204,7 +204,7 @@ def pdf_em_lote(
         raise HTTPException(status_code=404, detail="Boletos não encontrados")
 
     try:
-        conteudo = armazenamento.juntar_paginas([(h, b.pagina) for b, h in linhas])
+        conteudo = armazenamento.juntar_paginas([(h, b.pagina) for b, h in linhas], db)
     except armazenamento.ArquivoIndisponivel:
         raise HTTPException(
             status_code=404,
@@ -364,10 +364,10 @@ def pdf_do_boleto(
 
     try:
         if completo or boleto.pagina is None:
-            conteudo = armazenamento.ler(upload.hash_sha256)
+            conteudo = armazenamento.ler(upload.hash_sha256, db)
             nome = upload.nome_arquivo
         else:
-            conteudo = armazenamento.extrair_pagina(upload.hash_sha256, boleto.pagina)
+            conteudo = armazenamento.extrair_pagina(upload.hash_sha256, boleto.pagina, db)
             nome = nome_do_boleto(boleto)
     except armazenamento.ArquivoIndisponivel:
         raise HTTPException(

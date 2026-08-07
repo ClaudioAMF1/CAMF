@@ -142,7 +142,7 @@ def pdf_do_upload(upload_id: int, db: Session = Depends(get_db)):
     """Abre o arquivo PDF original completo, como enviado."""
     upload = _obter(db, upload_id, incluir_deletados=True)
     try:
-        conteudo = armazenamento.ler(upload.hash_sha256)
+        conteudo = armazenamento.ler(upload.hash_sha256, db)
     except armazenamento.ArquivoIndisponivel:
         raise HTTPException(
             status_code=404,

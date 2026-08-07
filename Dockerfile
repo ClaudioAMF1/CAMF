@@ -32,6 +32,7 @@ COPY --from=web /web/dist ./web
 
 ENV FRONTEND_DIR=/app/web \
     ARMAZENAMENTO_DIR=/dados/pdfs \
+    ARMAZENAMENTO_MODO=disco \
     PYTHONUNBUFFERED=1
 
 EXPOSE 8000
