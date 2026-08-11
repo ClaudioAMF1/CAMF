@@ -63,7 +63,7 @@ export default function PdfViewer({ boleto, onFechar }) {
             <div className="visor-erro">
               <div>
                 <strong style={{ display: 'block', marginBottom: 8 }}>PDF não disponível</strong>
-                <div style={{ color: 'var(--tinta-3)', maxWidth: 460 }}>{erro}</div>
+                <div style={{ color: 'var(--t-3)', maxWidth: 460 }}>{erro}</div>
               </div>
             </div>
           ) : (

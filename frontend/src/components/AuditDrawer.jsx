@@ -34,10 +34,10 @@ export default function AuditDrawer({ boletoId, onFechar }) {
           <div className="quando">{fmtDataHora(r.criado_em)} · {r.autor} · {r.origem}</div>
           <div style={{ fontSize: 13.5, marginTop: 2 }}>
             <strong>{ROTULOS_ACAO[r.acao] || r.acao}</strong>
-            {r.campo && <span style={{ color: 'var(--tinta-3)' }}> — {r.campo}</span>}
+            {r.campo && <span style={{ color: 'var(--t-3)' }}> — {r.campo}</span>}
           </div>
           {(r.valor_anterior != null || r.valor_novo != null) && (
-            <div style={{ fontSize: 12.5, color: 'var(--tinta-2)', marginTop: 4 }}>
+            <div style={{ fontSize: 12.5, color: 'var(--t-2)', marginTop: 4 }}>
               {r.valor_anterior != null && <>de <code>{r.valor_anterior}</code> </>}
               {r.valor_novo != null && <>para <code>{r.valor_novo}</code></>}
             </div>

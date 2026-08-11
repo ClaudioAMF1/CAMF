@@ -39,9 +39,9 @@ function ModalPagar({ alvo, onConfirmar, onFechar }) {
   })
   return (
     <Modal titulo={emLote ? `Baixar ${alvo.length} boletos` : 'Registrar pagamento'} onFechar={onFechar}>
-      <div style={{ color: 'var(--tinta-3)', fontSize: 12.5, marginBottom: 16 }}>
+      <div style={{ color: 'var(--t-3)', fontSize: 12.5, marginBottom: 16 }}>
         {total !== null
-          ? <>Total: <strong style={{ color: 'var(--tinta)' }}>{fmtBRL(total)}</strong></>
+          ? <>Total: <strong style={{ color: 'var(--t-1)' }}>{fmtBRL(total)}</strong></>
           : 'Boletos já pagos são ignorados.'}
       </div>
       <label className="campo" style={{ marginBottom: 12 }}>
@@ -59,6 +59,43 @@ function ModalPagar({ alvo, onConfirmar, onFechar }) {
         <button onClick={onFechar}>Cancelar</button>
       </div>
     </Modal>
+  )
+}
+
+/** Quanto somam os boletos marcados — calculado no servidor, então o valor
+ *  está certo mesmo ao selecionar uma pessoa inteira sem expandir a linha. */
+function ResumoSelecao({ ids }) {
+  const { data } = useQuery({
+    queryKey: ['resumo-selecao', [...ids].sort((a, b) => a - b)],
+    queryFn: () => apiSend('POST', '/boletos/resumo-selecao', { ids }),
+    enabled: ids.length > 0,
+    placeholderData: (anterior) => anterior,
+  })
+
+  return (
+    <div>
+      <div className="lote-total">
+        <span className="valor">{data ? fmtBRL(data.total) : '—'}</span>
+        <span className="qtd">
+          {ids.length} boleto{ids.length > 1 ? 's' : ''}
+          {data?.qtd_pagadores > 1 && ` · ${data.qtd_pagadores} pagadores`}
+        </span>
+      </div>
+      {data && (
+        <div className="lote-quebra">
+          {data.qtd_aberto > 0 && (
+            <span className="aberto">Em aberto <b>{fmtBRL(data.total_aberto)}</b> ({data.qtd_aberto})</span>
+          )}
+          {data.qtd_vencido > 0 && (
+            <span className="vencido">Vencido <b>{fmtBRL(data.total_vencido)}</b> ({data.qtd_vencido})</span>
+          )}
+          {data.qtd_pago > 0 && (
+            <span className="pago">Pago <b>{fmtBRL(data.total_pago)}</b> ({data.qtd_pago})</span>
+          )}
+          {data.qtd_deletados > 0 && <span>Deletados <b>{data.qtd_deletados}</b></span>}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -158,10 +195,10 @@ function GrupoPagador({ grupo, filtros, selecionados, alternar, alternarVarios, 
             <span className="b-aberto" style={{ width: `${pct(Number(grupo.total_aberto) - Number(grupo.total_vencido))}%` }} />
           </div>
         </td>
-        <td className="num" style={{ color: grupo.qtd_pago ? 'var(--verde)' : 'var(--tinta-fraca)' }}>
+        <td className="num" style={{ color: grupo.qtd_pago ? 'var(--verde)' : 'var(--t-4)' }}>
           {grupo.qtd_pago ? fmtBRL(grupo.total_pago) : '—'}
         </td>
-        <td className="num" style={{ color: Number(grupo.total_vencido) > 0 ? 'var(--vermelho)' : 'var(--tinta-fraca)' }}>
+        <td className="num" style={{ color: Number(grupo.total_vencido) > 0 ? 'var(--vermelho)' : 'var(--t-4)' }}>
           {Number(grupo.total_vencido) > 0 ? fmtBRL(grupo.total_vencido) : '—'}
         </td>
         <td>{grupo.proximo_vencimento ? fmtData(grupo.proximo_vencimento) : '—'}</td>
@@ -469,7 +506,7 @@ export default function BoletosPage() {
 
       {selecionados.size > 0 && (
         <div className="barra-lote">
-          <strong>{selecionados.size} selecionado(s)</strong>
+          <ResumoSelecao ids={idsSelecionados} />
           <div className="acoes" style={{ marginLeft: 'auto' }}>
             <a className="botao" href={`/api/boletos/pdf-lote?ids=${idsSelecionados.join(',')}`}>
               <IconBaixar /> Baixar

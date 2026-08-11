@@ -53,7 +53,7 @@ export default function UploadsPage() {
               )}
               {(data || []).map((u) => (
                 <tr key={u.id} className={u.deletado_em ? 'deletado' : ''}>
-                  <td style={{ color: 'var(--tinta-fraca)' }}>{u.id}</td>
+                  <td style={{ color: 'var(--t-4)' }}>{u.id}</td>
                   <td className="principal">
                     <a href={`/api/uploads/${u.id}/pdf`} target="_blank" rel="noreferrer"
                        title="Abrir o PDF original" style={{ color: 'var(--azul)', textDecoration: 'none' }}>

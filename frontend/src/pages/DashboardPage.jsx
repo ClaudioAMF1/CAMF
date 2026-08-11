@@ -15,8 +15,14 @@ import { useTema, Vazio } from '../ui'
 // Paleta validada para daltonismo (skill dataviz): azul p/ série única;
 // situação com cor fixa por entidade, nunca por posição.
 const CORES = {
-  claro: { serie: '#2a78d6', aberto: '#2a78d6', pago: '#008300', cancelado: '#898781', grade: '#e9edf3', eixo: '#94a3b8', superficie: '#ffffff', tinta: '#475569' },
-  escuro: { serie: '#3987e5', aberto: '#3987e5', pago: '#4ec44e', cancelado: '#7c8b9d', grade: '#232c39', eixo: '#6b7a8d', superficie: '#141a23', tinta: '#c2ccd9' },
+  claro: {
+    serie: '#2a6fd6', aberto: '#2a6fd6', pago: '#0a7a35', cancelado: '#a3a099',
+    grade: '#e8e7e3', eixo: '#a3a099', superficie: '#ffffff', tinta: '#45443f',
+  },
+  escuro: {
+    serie: '#5a94e8', aberto: '#5a94e8', pago: '#4bb567', cancelado: '#6b6862',
+    grade: '#2a2926', eixo: '#75736c', superficie: '#191918', tinta: '#cfcdc6',
+  },
 }
 
 const compacto = new Intl.NumberFormat('pt-BR', {
@@ -32,8 +38,9 @@ function Dica({ active, payload, label, c }) {
   if (!active || !payload?.length) return null
   return (
     <div style={{
-      background: c.superficie, border: `1px solid ${c.grade}`, borderRadius: 10,
-      padding: '9px 13px', fontSize: 12.5, boxShadow: '0 8px 24px rgba(0,0,0,.12)', color: c.tinta,
+      background: c.superficie, border: `1px solid ${c.grade}`, borderRadius: 9,
+      padding: '10px 13px', fontSize: 12.5, color: c.tinta,
+      boxShadow: '0 2px 4px rgba(23,23,22,.06), 0 12px 32px -6px rgba(23,23,22,.16)',
     }}>
       <div style={{ marginBottom: 3 }}>{label ?? payload[0].name}</div>
       {payload.map((p) => (
@@ -111,19 +118,23 @@ export default function DashboardPage() {
 
       <div className="cartoes">
         <div className="cartao azul">
+          <span className="fita" />
           <div className="rotulo">Total geral</div>
           <div className="numero">{fmtBRL(data.total_geral)}</div>
           <div className="apoio">{data.qtd_boletos} boletos · {data.qtd_pagadores} pagadores</div>
         </div>
         <div className="cartao azul">
+          <span className="fita" />
           <div className="rotulo">Em aberto</div>
           <div className="numero">{fmtBRL(data.total_aberto)}</div>
         </div>
         <div className="cartao verde">
+          <span className="fita" />
           <div className="rotulo">Recebido</div>
           <div className="numero">{fmtBRL(data.total_pago)}</div>
         </div>
         <div className="cartao vermelho">
+          <span className="fita" />
           <div className="rotulo">Vencido</div>
           <div className="numero">{fmtBRL(data.total_vencido)}</div>
         </div>
@@ -132,6 +143,7 @@ export default function DashboardPage() {
           <div className="numero">{fmtBRL(data.valor_medio)}</div>
         </div>
         <div className="cartao ambar">
+          <span className="fita" />
           <div className="rotulo">Revisão manual</div>
           <div className="numero">{data.qtd_revisao_manual}</div>
           <div className="apoio">boletos p/ conferir</div>

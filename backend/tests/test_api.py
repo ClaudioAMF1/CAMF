@@ -1,11 +1,12 @@
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from .conftest import enviar, texto_boleto
 
 CPF_A = "529.982.247-25"
 CNPJ_CAMF = "42.800.118/0001-44"
-VENC = date(2026, 8, 10)
+# Sempre no futuro: uma data fixa faria os testes falharem quando ela chegasse
+VENC = date.today() + timedelta(days=60)
 
 
 def _pagina(seq=1, nome="JOAO DA SILVA", cpf=CPF_A, valor=Decimal("100.00"), **kw):
@@ -26,7 +27,7 @@ def test_upload_cria_boleto(client):
     assert boletos["total"] == 1
     boleto = boletos["items"][0]
     assert boleto["valor"] == "100.00"
-    assert boleto["vencimento"] == "2026-08-10"
+    assert boleto["vencimento"] == VENC.isoformat()
     assert boleto["situacao"] == "aberto"
     assert boleto["qualidade"] == "ok"
     assert boleto["pagador_nome"] == "JOAO DA SILVA"
@@ -400,7 +401,7 @@ def test_agrupamento_por_pagador(client):
     assert joao["qtd_aberto"] == 2
     assert joao["total_aberto"] == "300.00"
     assert joao["qtd_pago"] == 0
-    assert joao["proximo_vencimento"] == "2026-08-10"
+    assert joao["proximo_vencimento"] == VENC.isoformat()
     # ordenado por total desc
     assert grupos[0]["nome"] == "JOAO DA SILVA"
 
@@ -628,3 +629,39 @@ def test_pdf_do_relatorio_sai_em_paisagem_e_sem_linha_cortada(client):
     assert "Subtotal" in texto                # detalhado agrupado por pessoa
     # "R$" nunca separado do número por quebra de linha
     assert "R$\n" not in texto
+
+
+def test_resumo_da_selecao_soma_por_situacao(client):
+    vencido = texto_boleto("JOAO DA SILVA", CPF_A, Decimal("70.00"), date(2020, 1, 10), sequencia=1)
+    futuro = texto_boleto("JOAO DA SILVA", CPF_A, Decimal("30.00"), date(2030, 1, 10), sequencia=2)
+    outro = texto_boleto("EMPRESA XYZ", "11.222.333/0001-81", Decimal("50.00"),
+                         date(2030, 2, 10), sequencia=3)
+    enviar(client, {"a.pdf": [vencido, futuro, outro]})
+
+    ids = [b["id"] for b in client.get("/api/boletos").json()["items"]]
+    pago = client.get("/api/boletos?valor_min=50&valor_max=50").json()["items"][0]
+    client.post(f"/api/boletos/{pago['id']}/pagar",
+                json={"data_pagamento": "2026-01-05", "valor_pago": "50.00"})
+
+    r = client.post("/api/boletos/resumo-selecao", json={"ids": ids}).json()
+    assert r["qtd"] == 3
+    assert r["total"] == "150.00"
+    assert r["qtd_pago"] == 1 and r["total_pago"] == "50.00"
+    assert r["qtd_vencido"] == 1 and r["total_vencido"] == "70.00"
+    assert r["qtd_aberto"] == 2 and r["total_aberto"] == "100.00"
+    assert r["qtd_pagadores"] == 2
+
+
+def test_resumo_da_selecao_com_lista_vazia(client):
+    r = client.post("/api/boletos/resumo-selecao", json={"ids": []}).json()
+    assert r["qtd"] == 0 and r["total"] == "0"
+
+
+def test_resumo_da_selecao_conta_deletados(client):
+    enviar(client, {"a.pdf": [_pagina(1), _pagina(2)]})
+    ids = [b["id"] for b in client.get("/api/boletos").json()["items"]]
+    client.post("/api/boletos/deletar-lote", json={"ids": ids[:1]})
+
+    r = client.post("/api/boletos/resumo-selecao", json={"ids": ids}).json()
+    assert r["qtd"] == 2  # deletados continuam somando na seleção
+    assert r["qtd_deletados"] == 1

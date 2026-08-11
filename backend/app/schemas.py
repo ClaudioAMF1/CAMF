@@ -160,6 +160,21 @@ class IdsIn(BaseModel):
     ids: list[int]
 
 
+class ResumoSelecao(BaseModel):
+    """Totais dos boletos marcados — some certo mesmo selecionando pela pessoa."""
+
+    qtd: int
+    total: Decimal
+    qtd_aberto: int
+    total_aberto: Decimal
+    qtd_pago: int
+    total_pago: Decimal
+    qtd_vencido: int
+    total_vencido: Decimal
+    qtd_deletados: int
+    qtd_pagadores: int
+
+
 class ResultadoAcaoLote(BaseModel):
     afetados: int
     ignorados: list[int] = Field(default_factory=list)

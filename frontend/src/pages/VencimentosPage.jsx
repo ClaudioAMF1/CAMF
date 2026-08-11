@@ -43,8 +43,8 @@ function ModalPagarLote({ boletos, onConfirmar, onFechar }) {
   const total = boletos.reduce((s, b) => s + Number(b.valor), 0)
   return (
     <Modal titulo={`Baixar ${boletos.length} boleto(s)`} onFechar={onFechar}>
-      <div style={{ color: 'var(--tinta-3)', fontSize: 13, marginBottom: 16 }}>
-        Total: <strong style={{ color: 'var(--tinta)' }}>{fmtBRL(total)}</strong>
+      <div style={{ color: 'var(--t-3)', fontSize: 13, marginBottom: 16 }}>
+        Total: <strong style={{ color: 'var(--t-1)' }}>{fmtBRL(total)}</strong>
         <div style={{ marginTop: 4 }}>Cada boleto é baixado pelo próprio valor.</div>
       </div>
       <label className="campo" style={{ marginBottom: 18 }}>
@@ -167,18 +167,20 @@ export default function VencimentosPage() {
           <input type="checkbox" checked={incluirVencidos} onChange={(e) => setIncluirVencidos(e.target.checked)} />
           Incluir atrasados
         </label>
-        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--tinta-3)' }}>
+        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--t-3)' }}>
           {periodo.rotulo}
         </div>
       </div>
 
       <div className="cartoes">
         <div className="cartao azul">
+          <span className="fita" />
           <div className="rotulo">A receber no período</div>
           <div className="numero">{fmtBRL(total)}</div>
           <div className="apoio">{boletos.length} boleto(s)</div>
         </div>
         <div className="cartao vermelho">
+          <span className="fita" />
           <div className="rotulo">Em atraso</div>
           <div className="numero">{fmtBRL(totalAtrasado)}</div>
           <div className="apoio">{atrasados.length} boleto(s)</div>
@@ -208,7 +210,7 @@ export default function VencimentosPage() {
                   </label>
                   <strong>{fmtData(dia)}</strong>
                   <span className={`dias ${prazo.classe}`}>{prazo.texto}</span>
-                  <span style={{ marginLeft: 'auto', color: 'var(--tinta-3)', fontSize: 12.5 }}>
+                  <span style={{ marginLeft: 'auto', color: 'var(--t-3)', fontSize: 12.5 }}>
                     {lista.length} boleto(s)
                   </span>
                   <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtBRL(somaDia)}</strong>
@@ -251,10 +253,14 @@ export default function VencimentosPage() {
 
       {selecionados.size > 0 && (
         <div className="barra-lote">
-          <strong>{selecionados.size} selecionado(s)</strong>
-          <span style={{ opacity: .75 }}>
-            {fmtBRL([...selecionados.values()].reduce((s, b) => s + Number(b.valor), 0))}
-          </span>
+          <div className="lote-total">
+            <span className="valor">
+              {fmtBRL([...selecionados.values()].reduce((s, b) => s + Number(b.valor), 0))}
+            </span>
+            <span className="qtd">
+              {selecionados.size} boleto{selecionados.size > 1 ? 's' : ''}
+            </span>
+          </div>
           <div className="acoes" style={{ marginLeft: 'auto' }}>
             <a className="botao" href={urlLote(idsSelecionados)}><IconBaixar /> Baixar PDFs</a>
             <button className="principal-btn" onClick={() => setPagandoLote(true)}>Marcar como pagos</button>

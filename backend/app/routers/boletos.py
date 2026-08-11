@@ -277,6 +277,43 @@ def pagar_lote(
     return schemas.ResultadoLote(pagos=pagos, ignorados=sorted(ignorados))
 
 
+@router.post("/resumo-selecao", response_model=schemas.ResumoSelecao)
+def resumo_da_selecao(corpo: schemas.IdsIn, db: Session = Depends(get_db)):
+    """Quanto somam os boletos marcados, com a quebra por situação."""
+    if not corpo.ids:
+        return schemas.ResumoSelecao(
+            qtd=0, total=Decimal(0), qtd_aberto=0, total_aberto=Decimal(0),
+            qtd_pago=0, total_pago=Decimal(0), qtd_vencido=0, total_vencido=Decimal(0),
+            qtd_deletados=0, qtd_pagadores=0,
+        )
+
+    stmt = (
+        select(Boleto)
+        .where(Boleto.id.in_(corpo.ids))
+        .execution_options(incluir_deletados=True)
+    )
+    boletos = db.execute(stmt).scalars().all()
+
+    def somar(condicao):
+        return sum((Decimal(b.valor) for b in boletos if condicao(b)), Decimal(0))
+
+    def contar(condicao):
+        return sum(1 for b in boletos if condicao(b))
+
+    return schemas.ResumoSelecao(
+        qtd=len(boletos),
+        total=somar(lambda b: True),
+        qtd_aberto=contar(lambda b: b.situacao == Situacao.aberto),
+        total_aberto=somar(lambda b: b.situacao == Situacao.aberto),
+        qtd_pago=contar(lambda b: b.situacao == Situacao.pago),
+        total_pago=somar(lambda b: b.situacao == Situacao.pago),
+        qtd_vencido=contar(lambda b: b.vencido),
+        total_vencido=somar(lambda b: b.vencido),
+        qtd_deletados=contar(lambda b: b.deletado_em is not None),
+        qtd_pagadores=len({b.pagador_id for b in boletos}),
+    )
+
+
 @router.post("/deletar-lote", response_model=schemas.ResultadoAcaoLote)
 def deletar_lote(
     corpo: schemas.IdsIn,
