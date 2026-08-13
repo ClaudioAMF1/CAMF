@@ -192,62 +192,68 @@ export default function VencimentosPage() {
         </div>
       </div>
 
+      {/* Uma grade só para todos os dias: com tabelas separadas por bloco, cada
+          uma calculava a própria largura e as colunas não alinhavam entre si. */}
       <div className="painel sem-padding">
         {isLoading ? (
-          <table><tbody><LinhasEsqueleto linhas={6} colunas={6} /></tbody></table>
+          <div style={{ padding: 20, display: 'grid', gap: 14 }}>
+            {Array.from({ length: 6 }, (_, i) => <div className="esqueleto" key={i} style={{ height: 34 }} />)}
+          </div>
         ) : boletos.length === 0 ? (
           <Vazio titulo="Nenhum boleto a vencer" descricao={`Nada em aberto ${periodo.rotulo}.`} />
         ) : (
-          porDia.map(([dia, lista]) => {
-            const prazo = rotuloPrazo(diasAte(dia))
-            const somaDia = lista.reduce((s, b) => s + Number(b.valor), 0)
-            const todosMarcados = lista.every((b) => selecionados.has(b.id))
-            return (
-              <div key={dia} className="bloco-dia">
-                <div className="bloco-dia-topo">
-                  <label className="marcador">
-                    <input type="checkbox" checked={todosMarcados} onChange={() => alternarDia(lista)} />
-                  </label>
-                  <strong>{fmtData(dia)}</strong>
-                  <span className={`dias ${prazo.classe}`}>{prazo.texto}</span>
-                  <span style={{ marginLeft: 'auto', color: 'var(--t-3)', fontSize: 12.5 }}>
-                    {lista.length} boleto(s)
-                  </span>
-                  <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtBRL(somaDia)}</strong>
-                  <a className="botao mini" href={urlLote(lista.map((b) => b.id))} title="Baixar os boletos deste dia">
-                    <IconBaixar />
-                  </a>
+          <div className="venc-lista">
+            <div className="venc-cabecalho">
+              <span />
+              <span>Pagador</span>
+              <span>Nº doc.</span>
+              <span />
+              <span className="dir">Valor</span>
+              <span className="dir">Boleto</span>
+            </div>
+
+            {porDia.map(([dia, lista]) => {
+              const prazo = rotuloPrazo(diasAte(dia))
+              const somaDia = lista.reduce((s, b) => s + Number(b.valor), 0)
+              const todosMarcados = lista.every((b) => selecionados.has(b.id))
+              return (
+                <div key={dia} className="venc-grupo">
+                  <div className={`venc-dia ${diasAte(dia) < 0 ? 'atrasado' : diasAte(dia) <= 7 ? 'proximo' : ''}`}>
+                    <input type="checkbox" checked={todosMarcados} onChange={() => alternarDia(lista)}
+                      aria-label={`Selecionar os boletos de ${fmtData(dia)}`} />
+                    <div className="venc-dia-info">
+                      <strong>{fmtData(dia)}</strong>
+                      <span className={`dias ${prazo.classe}`}>{prazo.texto}</span>
+                    </div>
+                    <span className="venc-dia-qtd">{lista.length} boleto{lista.length > 1 ? 's' : ''}</span>
+                    <strong className="venc-dia-total">{fmtBRL(somaDia)}</strong>
+                    <a className="botao mini so-icone" href={urlLote(lista.map((b) => b.id))}
+                       title={`Baixar os ${lista.length} boletos deste dia`}>
+                      <IconBaixar />
+                    </a>
+                  </div>
+
+                  {lista.map((b) => (
+                    <div key={b.id} className={`venc-linha ${selecionados.has(b.id) ? 'marcada' : ''}`}>
+                      <input type="checkbox" checked={selecionados.has(b.id)} onChange={() => alternar(b)}
+                        aria-label={`Selecionar boleto de ${b.pagador_nome}`} />
+                      <div className="venc-pagador">
+                        <span className="principal">{b.pagador_nome}</span>
+                        <span className="apoio">{fmtCpfCnpj(b.pagador_cpf_cnpj)}</span>
+                      </div>
+                      <span className="venc-doc">{b.num_documento || `#${b.id}`}</span>
+                      <span>{b.vencido && <span className="etiqueta vencido">Atrasado</span>}</span>
+                      <span className="venc-valor">{fmtBRL(b.valor)}</span>
+                      <div className="venc-acoes">
+                        <button className="mini" onClick={() => setVendoPdf(b)}><IconOlho /> Ver</button>
+                        <a className="botao mini" href={`/api/boletos/${b.id}/pdf`} download><IconBaixar /> Baixar</a>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <table>
-                  <tbody>
-                    {lista.map((b) => (
-                      <tr key={b.id} className={selecionados.has(b.id) ? 'selecionada' : ''}>
-                        <td style={{ width: 34 }}>
-                          <input type="checkbox" checked={selecionados.has(b.id)} onChange={() => alternar(b)}
-                            aria-label={`Selecionar boleto de ${b.pagador_nome}`} />
-                        </td>
-                        <td>
-                          <div className="principal">{b.pagador_nome}</div>
-                          <div className="apoio">{fmtCpfCnpj(b.pagador_cpf_cnpj)}</div>
-                        </td>
-                        <td>{b.num_documento || `#${b.id}`}</td>
-                        <td>
-                          {b.vencido && <span className="etiqueta vencido">Atrasado</span>}
-                        </td>
-                        <td className="num principal">{fmtBRL(b.valor)}</td>
-                        <td>
-                          <div className="acoes">
-                            <button className="mini" onClick={() => setVendoPdf(b)}><IconOlho /> Ver</button>
-                            <a className="botao mini" href={`/api/boletos/${b.id}/pdf`} download><IconBaixar /> Baixar</a>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )
-          })
+              )
+            })}
+          </div>
         )}
       </div>
 

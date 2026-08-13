@@ -477,16 +477,60 @@ td .acoes { flex-wrap: nowrap; }
 .menu-flutuante .rotulo { display: block; font-size: 13px; font-weight: 545; }
 .menu-flutuante .descricao { display: block; font-size: 11.5px; color: var(--t-4); margin-top: 1px; }
 
-/* ---------------- Blocos por dia ---------------- */
-.bloco-dia { border-bottom: 1px solid var(--linha); }
-.bloco-dia:last-child { border-bottom: none; }
-.bloco-dia-topo {
-  display: flex; align-items: center; gap: 11px; flex-wrap: wrap;
-  padding: 10px 16px; background: var(--sup-2);
-  border-bottom: 1px solid var(--linha); position: sticky; top: 0; z-index: 1;
+/* ---------------- Vencimentos: uma grade só ----------------
+   Todas as linhas (cabeçalho, faixa do dia e boletos) compartilham o mesmo
+   template de colunas, então tudo alinha verticalmente entre os dias. */
+.venc-lista { --venc-cols: 34px minmax(200px, 1fr) 96px 108px 132px 172px; }
+
+.venc-cabecalho, .venc-linha, .venc-dia {
+  display: grid; grid-template-columns: var(--venc-cols);
+  align-items: center; gap: 14px; padding: 0 16px;
 }
-.bloco-dia-topo strong { font-size: 13px; letter-spacing: -.015em; font-variant-numeric: tabular-nums; }
-.bloco-dia table td { padding: 10px 14px; }
+.venc-cabecalho {
+  height: 38px; background: var(--sup-2); border-bottom: 1px solid var(--linha);
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: .085em;
+  font-weight: 650; color: var(--t-4);
+  position: sticky; top: 0; z-index: 3;
+}
+.venc-cabecalho .dir { text-align: right; }
+
+.venc-grupo { border-bottom: 1px solid var(--linha); }
+.venc-grupo:last-child { border-bottom: none; }
+
+.venc-dia {
+  /* a faixa do dia ocupa a largura toda, mas mantém a coluna da caixa */
+  grid-template-columns: 34px 1fr auto auto auto;
+  min-height: 42px; background: var(--sup-2);
+  border-bottom: 1px solid var(--linha);
+  position: sticky; top: 38px; z-index: 2;
+}
+/* barra de urgência: vermelha no que já venceu, âmbar no que vence em breve */
+.venc-dia.atrasado { box-shadow: inset 3px 0 0 var(--vermelho); }
+.venc-dia.proximo { box-shadow: inset 3px 0 0 var(--ambar); }
+.venc-dia-info { display: flex; align-items: baseline; gap: 9px; }
+.venc-dia-info strong { font-size: 13px; letter-spacing: -.015em; font-variant-numeric: tabular-nums; }
+.venc-dia-qtd { font-size: 12px; color: var(--t-4); }
+.venc-dia-total { font-size: 13.5px; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+
+.venc-linha {
+  min-height: 52px; border-bottom: 1px solid var(--linha);
+  transition: background var(--rapido);
+}
+.venc-grupo .venc-linha:last-child { border-bottom: none; }
+.venc-linha:hover { background: var(--sup-2); }
+.venc-linha.marcada { background: var(--ac-sutil); box-shadow: inset 2.5px 0 0 var(--ac); }
+.venc-pagador { display: flex; flex-direction: column; min-width: 0; }
+.venc-pagador .principal,
+.venc-pagador .apoio { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.venc-doc { font-variant-numeric: tabular-nums; color: var(--t-2); }
+.venc-valor { text-align: right; font-weight: 560; font-variant-numeric: tabular-nums; letter-spacing: -.012em; }
+.venc-acoes { display: flex; gap: 6px; justify-content: flex-end; }
+.venc-acoes .botao, .venc-acoes button { flex: 1; max-width: 84px; }
+
+@media (max-width: 1000px) {
+  .venc-lista { --venc-cols: 30px minmax(150px, 1fr) 80px 96px 116px 150px; }
+  .venc-cabecalho, .venc-linha, .venc-dia { gap: 9px; padding: 0 12px; }
+}
 
 button svg, .botao svg { width: 14px; height: 14px; flex-shrink: 0; }
 button.mini svg, .botao.mini svg { width: 13px; height: 13px; }
