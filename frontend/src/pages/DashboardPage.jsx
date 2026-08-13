@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
-  Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart,
+  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend,
   Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts'
 import { apiGet } from '../api'
@@ -12,16 +12,17 @@ import { useFiltros } from '../filtros'
 import { fmtBRL, fmtData, fmtMes, ROTULOS_SITUACAO } from '../format'
 import { useTema, Vazio } from '../ui'
 
-// Paleta validada para daltonismo (skill dataviz): azul p/ série única;
-// situação com cor fixa por entidade, nunca por posição.
+// Paleta validada para daltonismo (skill dataviz). Nos gráficos de série única
+// (por pagador, por mês) a cor não codifica nada, então usamos o verde da marca.
+// Já na rosca de situação a cor é fixa por entidade, nunca por posição.
 const CORES = {
   claro: {
-    serie: '#2a6fd6', aberto: '#2a6fd6', pago: '#0a7a35', cancelado: '#a3a099',
-    grade: '#e8e7e3', eixo: '#a3a099', superficie: '#ffffff', tinta: '#45443f',
+    serie: '#0f7a55', aberto: '#2a6fd6', pago: '#0f7a55', cancelado: '#9aa79f',
+    grade: '#e9ede7', eixo: '#9aa79f', superficie: '#ffffff', tinta: '#47554e',
   },
   escuro: {
-    serie: '#5a94e8', aberto: '#5a94e8', pago: '#4bb567', cancelado: '#6b6862',
-    grade: '#2a2926', eixo: '#75736c', superficie: '#191918', tinta: '#cfcdc6',
+    serie: '#3fb98a', aberto: '#5a94e8', pago: '#3fb98a', cancelado: '#66746c',
+    grade: '#25302a', eixo: '#8b9a92', superficie: '#161e1a', tinta: '#c2cfc7',
   },
 }
 
@@ -38,9 +39,9 @@ function Dica({ active, payload, label, c }) {
   if (!active || !payload?.length) return null
   return (
     <div style={{
-      background: c.superficie, border: `1px solid ${c.grade}`, borderRadius: 9,
-      padding: '10px 13px', fontSize: 12.5, color: c.tinta,
-      boxShadow: '0 2px 4px rgba(23,23,22,.06), 0 12px 32px -6px rgba(23,23,22,.16)',
+      background: c.superficie, border: `1px solid ${c.grade}`, borderRadius: 13,
+      padding: '11px 14px', fontSize: 12.5, color: c.tinta,
+      boxShadow: '0 4px 12px rgba(20,33,27,.06), 0 16px 40px rgba(20,33,27,.12)',
     }}>
       <div style={{ marginBottom: 3 }}>{label ?? payload[0].name}</div>
       {payload.map((p) => (
@@ -159,39 +160,54 @@ export default function DashboardPage() {
         </div>
       ) : (
         <div className="grade-2">
-          <div className="painel">
+          <div className="painel painel-grafico">
             <div className="painel-titulo">Total por pagador</div>
             <div className="painel-sub">Maiores saldos no filtro atual</div>
-            <ResponsiveContainer width="100%" height={Math.min(460, Math.max(272, porPagador.length * 38))}>
+            <div className="grafico alto">
+            <ResponsiveContainer width="100%" height="100%">
               <BarChart data={porPagador} layout="vertical" margin={{ left: 4, right: 26 }}>
                 <CartesianGrid horizontal={false} stroke={c.grade} />
                 <XAxis type="number" tick={{ fontSize: 11.5, fill: c.eixo }} tickFormatter={(v) => compacto.format(v)} axisLine={{ stroke: c.grade }} tickLine={false} />
-                <YAxis type="category" dataKey="nome" width={158} tick={{ fontSize: 11.5, fill: c.tinta }} axisLine={false} tickLine={false} />
-                <Tooltip content={<Dica c={c} />} cursor={{ fill: 'rgba(42,120,214,.07)' }} />
-                <Bar dataKey="total" fill={c.serie} radius={[0, 4, 4, 0]} barSize={15} />
+                <YAxis type="category" dataKey="nome" width={142} axisLine={false} tickLine={false}
+                  tick={{ fontSize: 11.5, fill: c.tinta }}
+                  tickFormatter={(v) => (v.length > 20 ? `${v.slice(0, 19)}…` : v)} />
+                <Tooltip content={<Dica c={c} />} cursor={{ fill: 'rgba(15,122,85,.06)' }} />
+                <Bar dataKey="total" fill={c.serie} radius={[7, 7, 7, 7]} barSize={14} />
               </BarChart>
             </ResponsiveContainer>
+            </div>
           </div>
 
-          <div className="painel">
+          <div className="painel painel-grafico">
             <div className="painel-titulo">Recebimentos por mês</div>
             <div className="painel-sub">Total por mês de vencimento</div>
-            <ResponsiveContainer width="100%" height={272}>
-              <LineChart data={porMes} margin={{ left: 4, right: 26, top: 6 }}>
+            <div className="grafico alto">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={porMes} margin={{ left: 4, right: 26, top: 6 }}>
+                <defs>
+                  <linearGradient id="grad-mes" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={c.serie} stopOpacity={0.28} />
+                    <stop offset="100%" stopColor={c.serie} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid vertical={false} stroke={c.grade} />
                 <XAxis dataKey="rotulo" tick={{ fontSize: 11.5, fill: c.eixo }} axisLine={{ stroke: c.grade }} tickLine={false} />
                 <YAxis tick={{ fontSize: 11.5, fill: c.eixo }} tickFormatter={(v) => compacto.format(v)} width={68} axisLine={false} tickLine={false} />
-                <Tooltip content={<Dica c={c} />} />
-                <Line type="monotone" dataKey="total" stroke={c.serie} strokeWidth={2}
-                  dot={{ r: 3.5, fill: c.serie, strokeWidth: 0 }} activeDot={{ r: 6, strokeWidth: 2, stroke: c.superficie }} />
-              </LineChart>
+                <Tooltip content={<Dica c={c} />} cursor={{ stroke: c.grade, strokeWidth: 1 }} />
+                <Area type="monotone" dataKey="total" stroke={c.serie} strokeWidth={2.4}
+                  fill="url(#grad-mes)"
+                  dot={{ r: 3, fill: c.superficie, stroke: c.serie, strokeWidth: 2 }}
+                  activeDot={{ r: 5.5, fill: c.serie, strokeWidth: 2.5, stroke: c.superficie }} />
+              </AreaChart>
             </ResponsiveContainer>
+            </div>
           </div>
 
-          <div className="painel">
+          <div className="painel painel-grafico">
             <div className="painel-titulo">Por situação</div>
             <div className="painel-sub">Distribuição do valor total</div>
-            <ResponsiveContainer width="100%" height={272}>
+            <div className="grafico">
+            <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={porSituacao} dataKey="total" nameKey="nome"
                   innerRadius={60} outerRadius={94} paddingAngle={2}
@@ -204,6 +220,7 @@ export default function DashboardPage() {
                 <Tooltip content={<Dica c={c} />} />
               </PieChart>
             </ResponsiveContainer>
+            </div>
           </div>
 
           <div className="painel">

@@ -177,13 +177,18 @@ function GrupoPagador({ grupo, filtros, selecionados, alternar, alternarVarios, 
           <div className="linha-nome">
             <span className={`seta ${aberto ? 'aberta' : ''}`}><IconSeta /></span>
             <span className={`avatar ${grupo.provisorio ? 'provisorio' : ''}`}>{iniciais(grupo.nome)}</span>
-            <div>
-              <div className="principal">
-                {grupo.nome}
-                {grupo.provisorio && <span className="etiqueta provisorio" style={{ marginLeft: 6 }}>Provisório</span>}
-                {grupo.qtd_revisao > 0 && <span className="etiqueta revisao" style={{ marginLeft: 4 }}>{grupo.qtd_revisao} revisão</span>}
+            {/* nome sempre na 1ª linha e documento/etiquetas sempre na 2ª:
+                assim toda linha da tabela tem a mesma altura */}
+            <div style={{ minWidth: 0 }}>
+              <div className="principal">{grupo.nome}</div>
+              <div className="apoio-linha">
+                {grupo.provisorio
+                  ? <span className="etiqueta provisorio mini">Provisório</span>
+                  : <span className="apoio">{fmtCpfCnpj(grupo.cpf_cnpj)}</span>}
+                {grupo.qtd_revisao > 0 && (
+                  <span className="etiqueta revisao mini">{grupo.qtd_revisao} revisão</span>
+                )}
               </div>
-              <div className="apoio">{fmtCpfCnpj(grupo.cpf_cnpj)}</div>
             </div>
           </div>
         </td>
@@ -347,7 +352,7 @@ export default function BoletosPage() {
         <IconBaixar />
       </a>
       {!b.deletado_em && b.situacao === 'aberto' && (
-        <button className="principal-btn mini" onClick={() => setPagando(b)}>Pagar</button>
+        <button className="marca-sutil mini" onClick={() => setPagando(b)}>Pagar</button>
       )}
       {!b.deletado_em && <button className="mini" onClick={() => setEditando(b.id)}>Editar</button>}
       <button className="mini fantasma so-icone" title="Histórico" onClick={() => setDrawerId(b.id)}>
