@@ -35,6 +35,7 @@ def carregar_dataframe(db: Session, filtros: FiltrosBoleto) -> pd.DataFrame:
             "linha_digitavel": b.linha_digitavel,
             "nosso_numero": b.nosso_numero,
             "num_documento": b.num_documento,
+            "especie": b.especie,
             "data_emissao": b.data_emissao,
             "vencimento": b.vencimento,
             "valor": Decimal(b.valor),

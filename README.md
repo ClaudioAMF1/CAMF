@@ -267,6 +267,8 @@ GET    /api/dashboard                  mesmos filtros de /boletos
 GET    /api/dashboard/alertas?dias=30
 
 GET    /api/relatorios/pdf | xlsx | csv   respeitando os filtros
+GET    /api/relatorios/parcelas-em-aberto.pdf | .xlsx
+GET    /api/relatorios/titulos.pdf | .xlsx?taxa=1.69
 ```
 
 ## Tela de Vencimentos
@@ -334,6 +336,35 @@ espremia nomes em três linhas e separava o "R$" do número:
   (era o que gerava células vazias no meio da tabela);
 - valores e datas com `white-space: nowrap`, numerais tabulares, rodapé
   paginado com CNPJ.
+
+### Modelos impressos
+
+Dois layouts copiados dos relatórios em papel que a CAMF já usa, em PDF e em
+XLSX. Os dois trazem **só boletos em aberto** (a situação escolhida nos filtros
+é ignorada; datas, pagador e valores continuam valendo).
+
+**Parcelas em aberto** — o relatório de parcelas do Sicoob: A4 retrato, tons
+de cinza, um bloco por **data de vencimento** com a faixa do cedente, as
+parcelas, **Total Cedente** e **Total por Data de Vencimento**, e Total Geral
+no fim. Colunas: Nome/Sacado, Nosso Nº, Seu Número, Docto, Vencimento, Valor
+Operação, Valor Pago Parcial e Saldo Devedor.
+
+- O código do cedente (`185879-3`) e a cooperativa (`5004`) saem do **campo
+  livre da linha digitável** (carteira · cooperativa · modalidade · cliente ·
+  nosso número · parcela), então não precisam ser configurados.
+- O relatório do banco tem a coluna **Contrato**, que é um número interno do
+  Sicoob e não aparece no boleto; no lugar dela vai o **Nosso Número**.
+- **Valor Pago Parcial** sai sempre 0,00: o sistema registra a baixa do boleto
+  inteiro, não pagamentos parciais.
+- O cabeçalho identifica a CAMF como emissora (sem logo nem nome do sistema
+  do banco), para não ser confundido com um documento emitido pelo Sicoob.
+
+**Relação de títulos** — lista corrida por vencimento, A4 paisagem: Tipo,
+DOC (Nosso Número), Valor nominal, Valor Disponível (igual ao nominal),
+Vencimento, Tx. Juros e Pagador. A taxa é digitada no menu de exportação
+(o navegador lembra a última); vazia, a coluna sai em branco. No XLSX ela vai
+como porcentagem de verdade (`0,0169` formatado `1,6900 %`), para dar para
+calcular com ela.
 
 ## Baixa de pagamento: manual, em lote — não automática
 

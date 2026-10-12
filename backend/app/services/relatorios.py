@@ -7,7 +7,7 @@ from decimal import Decimal
 from pathlib import Path
 
 import pandas as pd
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
@@ -47,13 +47,18 @@ def detalhar_por_pagador(df: pd.DataFrame) -> list[dict]:
     return sorted(grupos, key=lambda g: (g["nome"] or "").upper())
 
 
+def ambiente_templates() -> Environment:
+    # autoescape: nomes de pagador vêm do PDF e podem trazer "&" ou "<"
+    env = Environment(loader=FileSystemLoader(TEMPLATES_DIR), autoescape=select_autoescape(["html"]))
+    env.filters["brl"] = formatar_brl
+    env.filters["data_br"] = formatar_data
+    return env
+
+
 def gerar_pdf(df: pd.DataFrame, resumo: dict, periodo: str) -> bytes:
     from weasyprint import HTML
 
-    env = Environment(loader=FileSystemLoader(TEMPLATES_DIR))
-    env.filters["brl"] = formatar_brl
-    env.filters["data_br"] = formatar_data
-    template = env.get_template("relatorio.html")
+    template = ambiente_templates().get_template("relatorio.html")
 
     html = template.render(
         empresa=settings.empresa_nome,

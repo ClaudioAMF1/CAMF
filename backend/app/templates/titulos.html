@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<style>
+  /* Lista corrida, fundo branco, cabeçalho em negrito e linhas espaçadas,
+     como a relação de títulos impressa. */
+  @page {
+    size: A4 landscape;
+    margin: 12mm 14mm 13mm;
+    @bottom-left  { font-family: Helvetica, Arial, sans-serif; content: "{{ empresa }} · CNPJ {{ cnpj }}"; font-size: 7.5pt; color: #666; }
+    @bottom-right { content: "Página " counter(page) " de " counter(pages); font-family: Helvetica, Arial, sans-serif; font-size: 7.5pt; color: #666; }
+  }
+
+  * { box-sizing: border-box; }
+  body { font-family: Helvetica, Arial, sans-serif; font-size: 9.6pt; color: #111; margin: 0; }
+
+  .topo { display: table; width: 100%; margin-bottom: 10pt; }
+  .topo > div { display: table-cell; vertical-align: bottom; }
+  .topo h1 { font-size: 12pt; margin: 0; }
+  .topo .sub { font-size: 8pt; color: #555; margin-top: 2pt; }
+  .topo .emissao { text-align: right; font-size: 8pt; color: #555; }
+
+  table { width: 100%; border-collapse: collapse; }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; }
+  th {
+    font-weight: 700; text-align: center; padding: 0 6pt 8pt; white-space: nowrap;
+    border-bottom: .8pt solid #888;
+  }
+  th.pagador { text-align: left; padding-left: 14pt; }
+  td { padding: 5.4pt 6pt; text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  td.pagador { text-align: left; padding-left: 14pt; white-space: normal; }
+  td.tipo { font-weight: 600; }
+  .valor { text-align: right; padding-right: 12pt; }
+  th.valor { text-align: right; padding-right: 12pt; }
+
+  tr.total td { border-top: .8pt solid #888; font-weight: 700; padding-top: 7pt; }
+  .vazio { text-align: center; padding: 30pt 0; color: #555; }
+</style>
+</head>
+<body>
+
+<div class="topo">
+  <div>
+    <h1>Relação de títulos em aberto</h1>
+    <div class="sub">{{ empresa }} · CNPJ {{ cnpj }}{% if periodo %} · Vencimentos de {{ periodo }}{% endif %}</div>
+  </div>
+  <div class="emissao">Emitido em {{ emitido_em.strftime('%d/%m/%Y às %H:%M') }}</div>
+</div>
+
+{% if not dados.itens %}
+  <p class="vazio">Nenhum título em aberto no filtro escolhido.</p>
+{% else %}
+<table>
+  <thead>
+    <tr>
+      <th>Tipo</th><th>DOC</th>
+      <th class="valor">Valor nominal</th><th class="valor">Valor Disponível</th>
+      <th>Vencimento</th><th>Tx.Juros</th><th class="pagador">Pagador</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for i in dados.itens %}
+    <tr>
+      <td class="tipo">{{ i.tipo }}</td>
+      <td>{{ i.doc }}</td>
+      <td class="valor">{{ i.valor_nominal | brl }}</td>
+      <td class="valor">{{ i.valor_disponivel | brl }}</td>
+      <td>{{ i.vencimento | data_br }}</td>
+      <td>{{ i.taxa | taxa }}</td>
+      <td class="pagador">{{ i.pagador }}</td>
+    </tr>
+    {% endfor %}
+    <tr class="total">
+      <td>Total</td>
+      <td>{{ dados.qtd }} título{{ 's' if dados.qtd != 1 }}</td>
+      <td class="valor">{{ dados.total_nominal | brl }}</td>
+      <td class="valor">{{ dados.total_disponivel | brl }}</td>
+      <td colspan="3"></td>
+    </tr>
+  </tbody>
+</table>
+{% endif %}
+
+</body>
+</html>

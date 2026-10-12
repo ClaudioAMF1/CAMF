@@ -7,8 +7,8 @@
   @page {
     size: A4 landscape;
     margin: 13mm 12mm 14mm;
-    @bottom-left  { content: "{{ empresa }} · CNPJ {{ cnpj }}"; font-size: 7.5pt; color: #8a8578; }
-    @bottom-right { content: "Página " counter(page) " de " counter(pages); font-size: 7.5pt; color: #8a8578; }
+    @bottom-left  { font-family: Helvetica, Arial, sans-serif; content: "{{ empresa }} · CNPJ {{ cnpj }}"; font-size: 7.5pt; color: #8a8578; }
+    @bottom-right { content: "Página " counter(page) " de " counter(pages); font-family: Helvetica, Arial, sans-serif; font-size: 7.5pt; color: #8a8578; }
   }
   @page :first { margin-top: 11mm; }
 

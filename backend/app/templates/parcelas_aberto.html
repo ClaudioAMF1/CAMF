@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<style>
+  /* Mesmo desenho do relatório de parcelas do banco: retrato, tons de cinza,
+     faixas por data de vencimento com Total Cedente e Total por Data. */
+  @page {
+    size: A4 portrait;
+    margin: 11mm 10mm 13mm;
+    @bottom-left  { font-family: Helvetica, Arial, sans-serif; content: "{{ empresa }} · Contas a Receber"; font-size: 7pt; color: #555; }
+    @bottom-right { content: "Página " counter(page) " de " counter(pages); font-family: Helvetica, Arial, sans-serif; font-size: 7pt; color: #555; }
+  }
+
+  * { box-sizing: border-box; }
+  body { font-family: Helvetica, Arial, sans-serif; font-size: 7.8pt; color: #111; margin: 0; }
+
+  /* ---------- Cabeçalho em moldura ---------- */
+  .moldura {
+    border: .9pt solid #333; padding: 6pt 8pt; margin-bottom: 6pt;
+    display: table; width: 100%; table-layout: fixed;
+  }
+  .moldura > div { display: table-cell; vertical-align: top; }
+  .esq { width: 30%; }
+  .centro { width: 46%; text-align: center; }
+  .dir { width: 24%; text-align: right; font-size: 7pt; line-height: 1.5; }
+  .empresa { font-size: 10pt; font-weight: 700; letter-spacing: -.1pt; }
+  .cnpj { font-size: 7pt; color: #333; margin-top: 1pt; }
+  .periodo { font-size: 7.5pt; font-weight: 700; margin-top: 5pt; }
+  .sistema { font-size: 7.5pt; color: #333; }
+  .titulo { font-size: 9.5pt; font-weight: 700; margin-top: 3pt; letter-spacing: .1pt; }
+  .dir b { display: block; }
+
+  /* ---------- Tabela ---------- */
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  thead { display: table-header-group; }   /* repete o cabeçalho em toda página */
+  tr { break-inside: avoid; }
+  tbody.grupo { break-inside: avoid; }     /* um dia inteiro não se divide se couber */
+  td, th { padding: 2.6pt 4pt; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .n { text-align: right; font-variant-numeric: tabular-nums; }
+  .c { text-align: center; }
+
+  thead th {
+    white-space: normal; overflow: visible;
+    background: #c9c9c9; font-weight: 700; font-size: 7.2pt; text-align: left;
+    vertical-align: bottom; padding-top: 3pt; padding-bottom: 3pt;
+  }
+  thead th.n { text-align: right; }
+  thead th.c { text-align: center; }
+  thead .sub th { padding-top: 0; }
+
+  .cedente td { background: #d2d2d2; font-weight: 700; }
+  .cedente .codigo { display: inline-block; width: 52pt; }
+  .item td { background: #fff; }
+  .item.listra td { background: #ececec; }
+  .item .sacado { padding-left: 22pt; white-space: normal; }  /* nome longo quebra, nunca é cortado */
+  .total-cedente td { background: #dcdcdc; font-weight: 700; }
+  .total-data td { background: #c4c4c4; font-weight: 700; border-bottom: 3pt solid #fff; }
+  .rotulo-total { text-align: right; }
+
+  .geral td {
+    background: #9e9e9e; font-weight: 700; font-size: 8.4pt; padding-top: 4pt; padding-bottom: 4pt;
+  }
+  .vazio { text-align: center; padding: 30pt 0; color: #555; }
+</style>
+</head>
+<body>
+
+<div class="moldura">
+  <div class="esq">
+    <div class="empresa">{{ empresa | upper }}</div>
+    <div class="cnpj">CNPJ {{ cnpj }}</div>
+    {% if periodo %}<div class="periodo">Período: {{ periodo }}</div>{% endif %}
+  </div>
+  <div class="centro">
+    <div class="sistema">
+      Sicoob{% if cedente.cooperativa %} · Cooperativa {{ cedente.cooperativa }}{% endif %}{% if cedente.codigo %} · Cedente {{ cedente.codigo }}{% endif %}
+    </div>
+    <div class="titulo">RELATÓRIO DE PARCELAS EM ABERTO</div>
+  </div>
+  <div class="dir">
+    Data de Emissão:<b>{{ emitido_em.strftime('%d/%m/%Y') }}</b>
+    Hora de Emissão:<b>{{ emitido_em.strftime('%H:%M:%S') }}</b>
+  </div>
+</div>
+
+{% if not dados.grupos %}
+  <p class="vazio">Nenhuma parcela em aberto no filtro escolhido.</p>
+{% else %}
+<table>
+  <colgroup>
+    <col style="width: 39%">
+    <col style="width: 7%"><col style="width: 8.5%"><col style="width: 6%">
+    <col style="width: 9.5%">
+    <col style="width: 10%"><col style="width: 9.5%"><col style="width: 10.5%">
+  </colgroup>
+  <thead>
+    <tr>
+      <th>Cedente&nbsp;&nbsp;&nbsp;&nbsp;Nome</th>
+      <th>Nosso<br>Nº</th><th class="c">Seu<br>Número</th><th class="c">Docto</th><th class="c">Vencimento</th>
+      <th class="n">Valor<br>Operação</th><th class="n">Valor Pago<br>Parcial</th><th class="n">Saldo<br>Devedor</th>
+    </tr>
+    <tr class="sub"><th style="padding-left: 22pt">Sacado</th><th colspan="7"></th></tr>
+  </thead>
+
+  {% for g in dados.grupos %}
+  <tbody class="grupo">
+    <tr class="cedente">
+      <td colspan="8"><span class="codigo">{{ cedente.codigo }}</span>{{ cedente.nome }}</td>
+    </tr>
+    {% for i in g.itens %}
+    <tr class="item{% if loop.index is even %} listra{% endif %}">
+      <td class="sacado">{{ i.sacado }}</td>
+      <td>{{ i.nosso_numero }}</td>
+      <td class="c">{{ i.seu_numero }}</td>
+      <td class="c">{{ i.docto }}</td>
+      <td class="c">{{ i.vencimento | data_br }}</td>
+      <td class="n">{{ i.valor | num_br }}</td>
+      <td class="n">{{ i.pago_parcial | num_br }}</td>
+      <td class="n">{{ i.saldo | num_br }}</td>
+    </tr>
+    {% endfor %}
+    <tr class="total-cedente">
+      <td colspan="5" class="rotulo-total">Total Cedente:</td>
+      <td class="n">{{ g.total_valor | num_br }}</td>
+      <td class="n">{{ g.total_pago | num_br }}</td>
+      <td class="n">{{ g.total_saldo | num_br }}</td>
+    </tr>
+    <tr class="total-data">
+      <td colspan="4" class="rotulo-total">Total por Data de Vencimento:</td>
+      <td class="c">{{ g.vencimento | data_br }}</td>
+      <td class="n">{{ g.total_valor | num_br }}</td>
+      <td class="n">{{ g.total_pago | num_br }}</td>
+      <td class="n">{{ g.total_saldo | num_br }}</td>
+    </tr>
+  </tbody>
+  {% endfor %}
+
+  <tbody>
+    <tr class="geral">
+      <td colspan="5" class="rotulo-total">Total Geral ({{ dados.qtd }} parcela{{ 's' if dados.qtd != 1 }}):</td>
+      <td class="n">{{ dados.total_valor | num_br }}</td>
+      <td class="n">{{ dados.total_pago | num_br }}</td>
+      <td class="n">{{ dados.total_saldo | num_br }}</td>
+    </tr>
+  </tbody>
+</table>
+{% endif %}
+
+</body>
+</html>
