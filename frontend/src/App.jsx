@@ -1,4 +1,4 @@
-import { NavLink, Route, Routes } from 'react-router-dom'
+import { NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import { FiltrosProvider } from './filtros'
 import {
   IconBoletos, IconDashboard, IconHistorico, IconPagadores, IconUpload, IconVencimentos,
@@ -24,16 +24,35 @@ const secoes = [
   ]],
 ]
 
+const CAMINHOS = {
+  '/': '~', '/vencimentos': '~/vencimentos', '/boletos': '~/boletos',
+  '/pagadores': '~/pagadores', '/upload': '~/upload', '/uploads': '~/historico',
+}
+
+/** Linha de terminal acima de cada tela, como o prompt do portfólio. */
+function Prompt() {
+  const { pathname } = useLocation()
+  return (
+    <div className="prompt-linha">
+      <div className="prompt">
+        <b>camf</b><i>@</i>receber <i>{CAMINHOS[pathname] ?? '~'}</i> <i>›</i>
+        <span className="cursor" aria-hidden="true" />
+      </div>
+      <BotaoTema />
+    </div>
+  )
+}
+
 export default function App() {
   return (
     <FiltrosProvider>
       <div className="layout">
         <nav className="lateral">
           <div className="marca">
-            <div className="marca-selo">CA</div>
+            <div className="marca-selo" aria-hidden="true">ca</div>
             <div>
-              <h1>CAMF Construtora</h1>
-              <small>Contas a Receber</small>
+              <h1>camf<span>.receber</span></h1>
+              <small>CAMF Construtora LTDA</small>
             </div>
           </div>
 
@@ -50,17 +69,13 @@ export default function App() {
           ))}
 
           <div className="lateral-rodape">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-              <div>
-                Sicoob · Banco 756
-                <div style={{ opacity: .75 }}>CNPJ 42.800.118/0001-44</div>
-              </div>
-              <BotaoTema />
-            </div>
+            sicoob · banco 756
+            <div>cnpj 42.800.118/0001-44</div>
           </div>
         </nav>
 
         <main className="conteudo">
+          <Prompt />
           <Routes>
             <Route path="/" element={<DashboardPage />} />
             <Route path="/vencimentos" element={<VencimentosPage />} />

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -12,18 +12,17 @@ import { useFiltros } from '../filtros'
 import { fmtBRL, fmtData, fmtMes, ROTULOS_SITUACAO } from '../format'
 import { useTema, Vazio } from '../ui'
 
-// Paleta validada para daltonismo (skill dataviz). Nos gráficos de série única
-// (por pagador, por mês) a cor não codifica nada, então usamos o verde da marca.
-// Já na rosca de situação a cor é fixa por entidade, nunca por posição.
-const CORES = {
-  claro: {
-    serie: '#0f7a55', aberto: '#2a6fd6', pago: '#0f7a55', cancelado: '#9aa79f',
-    grade: '#e9ede7', eixo: '#9aa79f', superficie: '#ffffff', tinta: '#47554e',
-  },
-  escuro: {
-    serie: '#3fb98a', aberto: '#5a94e8', pago: '#3fb98a', cancelado: '#66746c',
-    grade: '#25302a', eixo: '#8b9a92', superficie: '#161e1a', tinta: '#c2cfc7',
-  },
+// As cores vêm das variáveis do tema ativo (styles.css), então os gráficos
+// acompanham escuro / fósforo / papel. A série única usa o acento do tema;
+// a rosca de situação usa as cores de dado, fixas por entidade e validadas
+// para daltonismo em cada fundo.
+function lerCores() {
+  const css = getComputedStyle(document.documentElement)
+  const v = (nome) => css.getPropertyValue(nome).trim()
+  return {
+    serie: v('--accent'), aberto: v('--d-aberto'), pago: v('--d-pago'), cancelado: v('--dim'),
+    grade: v('--border'), eixo: v('--muted'), superficie: v('--bg'), tinta: v('--text'),
+  }
 }
 
 const compacto = new Intl.NumberFormat('pt-BR', {
@@ -39,9 +38,8 @@ function Dica({ active, payload, label, c }) {
   if (!active || !payload?.length) return null
   return (
     <div style={{
-      background: c.superficie, border: `1px solid ${c.grade}`, borderRadius: 13,
-      padding: '11px 14px', fontSize: 12.5, color: c.tinta,
-      boxShadow: '0 4px 12px rgba(20,33,27,.06), 0 16px 40px rgba(20,33,27,.12)',
+      background: c.superficie, border: `1px solid ${c.eixo}`,
+      padding: '8px 11px', fontSize: 11.5, color: c.tinta,
     }}>
       <div style={{ marginBottom: 3 }}>{label ?? payload[0].name}</div>
       {payload.map((p) => (
@@ -57,7 +55,7 @@ function Dica({ active, payload, label, c }) {
 export default function DashboardPage() {
   const { ativos } = useFiltros()
   const { tema } = useTema()
-  const c = CORES[tema === 'escuro' ? 'escuro' : 'claro']
+  const c = useMemo(lerCores, [tema])
   const [dias, setDias] = useState(30)
 
   const { data, isLoading } = useQuery({
@@ -166,13 +164,13 @@ export default function DashboardPage() {
             <div className="grafico alto">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={porPagador} layout="vertical" margin={{ left: 4, right: 26 }}>
-                <CartesianGrid horizontal={false} stroke={c.grade} />
-                <XAxis type="number" tick={{ fontSize: 11.5, fill: c.eixo }} tickFormatter={(v) => compacto.format(v)} axisLine={{ stroke: c.grade }} tickLine={false} />
-                <YAxis type="category" dataKey="nome" width={142} axisLine={false} tickLine={false}
-                  tick={{ fontSize: 11.5, fill: c.tinta }}
-                  tickFormatter={(v) => (v.length > 20 ? `${v.slice(0, 19)}…` : v)} />
-                <Tooltip content={<Dica c={c} />} cursor={{ fill: 'rgba(15,122,85,.06)' }} />
-                <Bar dataKey="total" fill={c.serie} radius={[7, 7, 7, 7]} barSize={14} />
+                <CartesianGrid horizontal={false} stroke={c.grade} strokeDasharray="2 4" />
+                <XAxis type="number" tick={{ fontSize: 10.5, fill: c.eixo }} tickFormatter={(v) => compacto.format(v)} axisLine={{ stroke: c.grade }} tickLine={false} />
+                <YAxis type="category" dataKey="nome" width={168} axisLine={false} tickLine={false}
+                  tick={{ fontSize: 10.5, fill: c.tinta }}
+                  tickFormatter={(v) => (v.length > 22 ? `${v.slice(0, 21)}…` : v)} />
+                <Tooltip content={<Dica c={c} />} cursor={{ fill: c.grade, fillOpacity: 0.35 }} />
+                <Bar dataKey="total" fill={c.serie} radius={[0, 2, 2, 0]} barSize={12} />
               </BarChart>
             </ResponsiveContainer>
             </div>
@@ -186,15 +184,15 @@ export default function DashboardPage() {
               <AreaChart data={porMes} margin={{ left: 4, right: 26, top: 6 }}>
                 <defs>
                   <linearGradient id="grad-mes" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={c.serie} stopOpacity={0.28} />
+                    <stop offset="0%" stopColor={c.serie} stopOpacity={0.22} />
                     <stop offset="100%" stopColor={c.serie} stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid vertical={false} stroke={c.grade} />
-                <XAxis dataKey="rotulo" tick={{ fontSize: 11.5, fill: c.eixo }} axisLine={{ stroke: c.grade }} tickLine={false} />
-                <YAxis tick={{ fontSize: 11.5, fill: c.eixo }} tickFormatter={(v) => compacto.format(v)} width={68} axisLine={false} tickLine={false} />
+                <CartesianGrid vertical={false} stroke={c.grade} strokeDasharray="2 4" />
+                <XAxis dataKey="rotulo" tick={{ fontSize: 10.5, fill: c.eixo }} axisLine={{ stroke: c.grade }} tickLine={false} />
+                <YAxis tick={{ fontSize: 10.5, fill: c.eixo }} tickFormatter={(v) => compacto.format(v)} width={68} axisLine={false} tickLine={false} />
                 <Tooltip content={<Dica c={c} />} cursor={{ stroke: c.grade, strokeWidth: 1 }} />
-                <Area type="monotone" dataKey="total" stroke={c.serie} strokeWidth={2.4}
+                <Area type="monotone" dataKey="total" stroke={c.serie} strokeWidth={1.6}
                   fill="url(#grad-mes)"
                   dot={{ r: 3, fill: c.superficie, stroke: c.serie, strokeWidth: 2 }}
                   activeDot={{ r: 5.5, fill: c.serie, strokeWidth: 2.5, stroke: c.superficie }} />
@@ -210,13 +208,18 @@ export default function DashboardPage() {
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={porSituacao} dataKey="total" nameKey="nome"
-                  innerRadius={60} outerRadius={94} paddingAngle={2}
+                  innerRadius={62} outerRadius={92} paddingAngle={1.5}
                   stroke={c.superficie} strokeWidth={2}
-                  label={({ nome, total }) => `${nome}: ${compacto.format(total)}`}
+                  label={({ x, y, textAnchor, nome, total }) => (
+                    // texto na tinta normal; quem carrega a cor é a fatia
+                    <text x={x} y={y} textAnchor={textAnchor} dominantBaseline="central" fill={c.tinta} fontSize={10.5}>
+                      {nome}: {compacto.format(total)}
+                    </text>
+                  )}
                   labelLine={{ stroke: c.grade }}>
                   {porSituacao.map((s) => <Cell key={s.situacao} fill={c[s.situacao] || c.cancelado} />)}
                 </Pie>
-                <Legend formatter={(v) => <span style={{ color: c.tinta, fontSize: 12 }}>{v}</span>} />
+                <Legend formatter={(v) => <span style={{ color: c.tinta, fontSize: 11 }}>{v}</span>} />
                 <Tooltip content={<Dica c={c} />} />
               </PieChart>
             </ResponsiveContainer>

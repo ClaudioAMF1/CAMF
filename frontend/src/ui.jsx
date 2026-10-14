@@ -1,24 +1,42 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { IconCheck, IconLua, IconSol, IconVazio } from './icons'
+import { IconCheck, IconVazio } from './icons'
 
-/* ---------------- Tema claro/escuro ---------------- */
+/* ---------------- Tema ----------------
+   Os mesmos três do portfólio: escuro (padrão), fósforo e papel.
+   "claro" continua sendo a chave do papel para não perder a preferência
+   de quem já tinha escolhido o tema claro. */
+
+const TEMAS = ['escuro', 'fosforo', 'claro']
+export const NOMES_TEMA = { escuro: 'escuro', fosforo: 'fósforo', claro: 'papel' }
 
 const TemaContext = createContext(null)
 
-export function TemaProvider({ children }) {
-  const [tema, setTema] = useState(() => {
+function temaInicial() {
+  let tema = window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'claro' : 'escuro'
+  try {
     const salvo = localStorage.getItem('camf-tema')
-    if (salvo) return salvo
-    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'escuro' : 'claro'
-  })
+    if (TEMAS.includes(salvo)) tema = salvo
+  } catch { /* sem armazenamento */ }
+  return aplicar(tema)
+}
+
+/* O atributo é aplicado já na troca (não só no efeito) porque os gráficos
+   leem as cores das variáveis CSS durante a renderização. */
+function aplicar(tema) {
+  document.documentElement.dataset.tema = tema
+  return tema
+}
+
+export function TemaProvider({ children }) {
+  const [tema, setTema] = useState(temaInicial)
 
   useEffect(() => {
     document.documentElement.dataset.tema = tema
-    localStorage.setItem('camf-tema', tema)
+    try { localStorage.setItem('camf-tema', tema) } catch { /* só não lembra */ }
   }, [tema])
 
   const valor = useMemo(
-    () => ({ tema, alternar: () => setTema((t) => (t === 'claro' ? 'escuro' : 'claro')) }),
+    () => ({ tema, alternar: () => setTema((t) => aplicar(TEMAS[(TEMAS.indexOf(t) + 1) % TEMAS.length])) }),
     [tema]
   )
   return <TemaContext.Provider value={valor}>{children}</TemaContext.Provider>
@@ -28,14 +46,10 @@ export const useTema = () => useContext(TemaContext)
 
 export function BotaoTema() {
   const { tema, alternar } = useTema()
+  const proximo = TEMAS[(TEMAS.indexOf(tema) + 1) % TEMAS.length]
   return (
-    <button
-      className="icone fantasma"
-      onClick={alternar}
-      title={tema === 'claro' ? 'Mudar para tema escuro' : 'Mudar para tema claro'}
-      aria-label="Alternar tema"
-    >
-      {tema === 'claro' ? <IconLua /> : <IconSol />}
+    <button className="botao-tema" onClick={alternar} title={`Mudar para o tema ${NOMES_TEMA[proximo]}`}>
+      :tema <span>{NOMES_TEMA[tema]}</span>
     </button>
   )
 }
